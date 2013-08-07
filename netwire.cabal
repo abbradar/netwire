@@ -1,0 +1,75 @@
+name:          netwire
+version:       0.1.0
+category:      
+synopsis:      
+maintainer:    Ertugrul Söylemez <es@ertes.de>
+author:        Ertugrul Söylemez <es@ertes.de>
+copyright:     (c) 2013 Ertugrul Söylemez
+license:       BSD3
+license-file:  LICENSE
+build-type:    Simple
+cabal-version: >= 1.10
+extra-source-files: README.md
+description:
+    
+
+Source-repository head
+    type:     darcs
+    location: http://hub.darcs.net/ertes/netwire
+
+library
+    build-depends:
+        base >= 4.5 && < 5
+    default-language: Haskell2010
+    default-extensions:
+    ghc-options: -W
+    exposed-modules:
+
+executable netwire
+    build-depends:
+        base >= 4.5 && < 5,
+        netwire
+    default-language: Haskell2010
+    default-extensions:
+    ghc-options: -W -threaded -rtsopts
+    hs-source-dirs: program
+    main-is: Main.hs
+
+test-suite tests
+    type: exitcode-stdio-1.0
+    build-depends:
+        base >= 4.5 && < 5,
+        netwire,
+        QuickCheck,
+        test-framework,
+        test-framework-quickcheck2,
+        test-framework-th
+    default-language: Haskell2010
+    default-extensions:
+        TemplateHaskell
+    ghc-options: -W -threaded -rtsopts -with-rtsopts=-N
+    hs-source-dirs: test
+    main-is: Props.hs
+
+test-suite netwire-test
+    type: exitcode-stdio-1.0
+    build-depends:
+        base >= 4.5 && < 5,
+        netwire
+    default-language: Haskell2010
+    default-extensions:
+    ghc-options: -W -threaded -rtsopts
+    hs-source-dirs: test
+    main-is: Test.hs
+
+benchmark bench
+    type: exitcode-stdio-1.0
+    build-depends:
+        base >= 4.5 && < 5,
+        criterion,
+        netwire
+    default-language: Haskell2010
+    default-extensions:
+    ghc-options: -W -threaded -rtsopts
+    hs-source-dirs: test
+    main-is: Bench.hs

@@ -1,0 +1,6 @@
+^bench$
+^cabal-dev$
+^dist$
+^netwire$
+^netwire-test$
+^tests$
