@@ -65,7 +65,9 @@ instance (Monoid ds, Num dt) => Monoid (Timed dt ds) where
     mempty = Timed 0 mempty
 
     mappend (Timed dt1 ds1) (Timed dt2 ds2) =
-        Timed (dt1 + dt2) (ds1 <> ds2)
+        let dt = dt1 + dt2
+            ds = ds1 <> ds2
+        in dt `seq` ds `seq` Timed dt ds
 
 
 -- | State delta generator for a real time clock.
