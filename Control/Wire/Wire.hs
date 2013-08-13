@@ -8,6 +8,9 @@ module Control.Wire.Wire
     ( -- * Wires
       Wire(..),
 
+      -- * Helpers
+      identity,
+
       -- * Low level
       mkPure,
       mkPure_,
@@ -147,21 +150,25 @@ instance (Applicative m, Num b) => Num (Wire ds e m a b) where
     fromInteger = pure . fromInteger
 
 
+-- | Identity wire.
+
+identity :: (Applicative m) => Wire ds e m a a
+identity = let w = Wire (\_ mx -> pure (mx, w)) in w
+
+
 -- | Construct a pure wire from the given transition function.
 
 mkPure ::
-    (Applicative m)
+    (Applicative m, Monoid ds)
     => (ds -> a -> (Either e b, Wire ds e m a b))
     -> Wire ds e m a b
-mkPure f =
-    let w = Wire (\ds -> pure . either ((, w) . Left) (f ds))
-    in w
+mkPure f = mkWire (\ds -> pure . f ds)
 
 
 -- | Construct a pure stateless wire from the given transition function.
 
 mkPure_ ::
-    (Applicative m)
+    (Applicative m, Monoid ds)
     => (ds -> a -> Either e b)
     -> Wire ds e m a b
 mkPure_ f = let w = mkPure (\ds -> (, w) . f ds) in w
@@ -170,18 +177,24 @@ mkPure_ f = let w = mkPure (\ds -> (, w) . f ds) in w
 -- | Construct a wire from the given transition function.
 
 mkWire ::
-    (Applicative m)
+    (Applicative m, Monoid ds)
     => (ds -> a -> m (Either e b, Wire ds e m a b))
     -> Wire ds e m a b
-mkWire f =
-    let w = Wire (\ds -> either (pure . (, w) . Left) (f ds))
-    in w
+mkWire f = loop mempty
+    where
+    loop ds' =
+        Wire $ \dds mx' ->
+            let ds = ds' <> dds in
+            ds `seq`
+            case mx' of
+              Left ex  -> pure (Left ex, loop ds)
+              Right x' -> f ds x'
 
 
 -- | Construct a stateless wire from the given transition function.
 
 mkWire_ ::
-    (Applicative m)
+    (Applicative m, Monoid ds)
     => (ds -> a -> m (Either e b))
     -> Wire ds e m a b
 mkWire_ f = let w = mkWire (\ds -> fmap (, w) . f ds) in w

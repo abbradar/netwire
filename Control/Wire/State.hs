@@ -29,7 +29,7 @@ import Data.Traversable (Traversable)
 
 -- | State delta types with time deltas.
 
-class (Num dt, Ord dt) => HasTime dt ds | ds -> dt where
+class (Monoid ds, Real dt) => HasTime dt ds | ds -> dt where
     -- | Extract the current time delta.
     dtime :: ds -> dt
 
@@ -58,7 +58,7 @@ data Timed dt ds = Timed dt ds
     deriving (Data, Eq, Foldable, Functor,
               Ord, Read, Show, Traversable, Typeable)
 
-instance (Num dt, Ord dt) => HasTime dt (Timed dt ds) where
+instance (Monoid ds, Real dt) => HasTime dt (Timed dt ds) where
     dtime (Timed dt _) = dt
 
 instance (Monoid ds, Num dt) => Monoid (Timed dt ds) where
