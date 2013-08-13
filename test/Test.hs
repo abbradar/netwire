@@ -16,9 +16,12 @@ import Text.Printf
 type MyWire = Wire' IO
 
 
-wire :: MyWire a (Double, Double, Double)
+wire :: MyWire a String
 wire =
-    liftA3 (,,) lowPeak highPeak id . framerate
+    "hey!" . for 2 -->
+    "yo!" . for 2 -->
+    "groovy!" . for 2 -->
+    fmap show (timeFrom 6)
 
     where
     t :: MyWire a Double

@@ -42,6 +42,8 @@ library
         Control.Wire.FRP
         Control.Wire.FRP.Analyze
         Control.Wire.FRP.Core
+        Control.Wire.FRP.Occasion
+        Control.Wire.FRP.Switch
         Control.Wire.FRP.Types
         Control.Wire.Session
         Control.Wire.State

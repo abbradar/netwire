@@ -5,9 +5,12 @@
 -- Maintainer: Ertugrul Soeylemez <es@ertes.de>
 
 module Control.Wire.FRP.Types
-    ( -- * Helper types
-      Event,
-      Wire'
+    ( -- * Wire synonyms
+      Occasion,
+      Wire',
+
+      -- * Helper types
+      Event
     )
     where
 
@@ -19,6 +22,11 @@ import Data.Time.Clock
 -- | Signals that represent discrete events.
 
 type Event = Maybe
+
+
+-- | Occasions are identity-like wires that may inhibit.
+
+type Occasion ds e m a = Wire ds e m a a
 
 
 -- | Simple wires.
