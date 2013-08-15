@@ -15,7 +15,7 @@ import Text.Printf
 
 wire :: WireP' a Double
 wire =
-    avgFps 0.5 10
+    stdNoise 0.01 15
 
     where
     t :: WireP' a Double
@@ -24,4 +24,4 @@ wire =
 
 main :: IO ()
 main =
-    testWire_ 1000 clockSession_ wire
+    testWire_ 0 clockSession_ wire

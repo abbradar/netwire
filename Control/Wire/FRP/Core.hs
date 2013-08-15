@@ -11,7 +11,8 @@ module Control.Wire.FRP.Core
 
       -- * Unfold
       iterateW,
-      list
+      list,
+      unfold
     )
     where
 
@@ -56,15 +57,7 @@ iterateW ::
     -> b         -- ^ Start value.
     -> Wire s e m a b
 iterateW int _ | int <= 0 = error "iterateW: Non-positive time interval"
-iterateW int f = loop 0
-    where
-    loop t' x' =
-        mkPure $ \ds _ ->
-            let (t, x) = step (t' + dtime ds) x' in
-            (Right x, loop t x)
-
-    step t x | t >= int   = step (t - int) $! f x
-             | otherwise = x `seq` (t, x)
+iterateW int f = unfold int ((\x -> (x, x)) . f)
 
 
 -- | Current local time starting from zero.
@@ -80,3 +73,26 @@ timeFrom t' =
     mkPure $ \ds _ ->
         let t = t' + dtime ds
         in t `seq` (Right t, timeFrom t)
+
+
+-- | Staircase with the given step duration of the given unfold.
+
+unfold ::
+    (HasTime t s, Monad m)
+    => t              -- ^ Step duration.
+    -> (g -> (b, g))  -- ^ Unfold.
+    -> g              -- ^ Start value.
+    -> Wire s e m a b
+unfold int _ | int <= 0 = error "unfold: Non-positive step duration"
+unfold int gen = uncurry (loop int) . gen
+    where
+    loop t' x' g' =
+        mkPure $ \ds _ ->
+            let (t, x, g) = next (dtime ds) t' x' g'
+            in (Right x, loop t x g)
+
+    next dt t x' g'
+        | dt < t    = (t - dt, x', g')
+        | otherwise =
+            let (x, g) = gen g' in
+            next (dt - t) int x g
