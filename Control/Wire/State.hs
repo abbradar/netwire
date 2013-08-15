@@ -29,18 +29,18 @@ import Data.Traversable (Traversable)
 
 -- | State delta types with time deltas.
 
-class (Monoid ds, Real dt) => HasTime dt ds | ds -> dt where
+class (Monoid s, Real t) => HasTime t s | s -> t where
     -- | Extract the current time delta.
-    dtime :: ds -> dt
+    dtime :: s -> t
 
 
 -- | State delta generators as required for wire sessions, most notably
 -- to generate time deltas.  These are mini-wires with the sole purpose
 -- of generating these deltas.
 
-newtype Session m ds =
+newtype Session m s =
     Session {
-      stepSession :: m (ds, Session m ds)
+      stepSession :: m (s, Session m s)
     }
     deriving (Functor)
 
@@ -54,14 +54,14 @@ instance (Applicative m) => Applicative (Session m) where
 -- | This state delta type denotes time deltas.  This is necessary for
 -- most FRP applications.
 
-data Timed dt ds = Timed dt ds
+data Timed t s = Timed t s
     deriving (Data, Eq, Foldable, Functor,
               Ord, Read, Show, Traversable, Typeable)
 
-instance (Monoid ds, Real dt) => HasTime dt (Timed dt ds) where
+instance (Monoid s, Real t) => HasTime t (Timed t s) where
     dtime (Timed dt _) = dt
 
-instance (Monoid ds, Num dt) => Monoid (Timed dt ds) where
+instance (Monoid s, Num t) => Monoid (Timed t s) where
     mempty = Timed 0 mempty
 
     mappend (Timed dt1 ds1) (Timed dt2 ds2) =
@@ -72,7 +72,7 @@ instance (Monoid ds, Num dt) => Monoid (Timed dt ds) where
 
 -- | State delta generator for a real time clock.
 
-clockSession :: (MonadIO m) => Session m (ds -> Timed NominalDiffTime ds)
+clockSession :: (MonadIO m) => Session m (s -> Timed NominalDiffTime s)
 clockSession =
     Session $ do
         t0 <- liftIO getCurrentTime
@@ -98,8 +98,8 @@ clockSession_ = clockSession <*> pure ()
 
 countSession ::
     (Applicative m)
-    => dt  -- ^ Increment size.
-    -> Session m (ds -> Timed dt ds)
+    => t  -- ^ Increment size.
+    -> Session m (s -> Timed t s)
 countSession dt =
     let loop = Session (pure (Timed dt, loop))
     in loop
@@ -107,5 +107,5 @@ countSession dt =
 
 -- | Non-extending version of 'countSession'.
 
-countSession_ :: (Applicative m, MonadIO m) => dt -> Session m (Timed dt ())
+countSession_ :: (Applicative m, MonadIO m) => t -> Session m (Timed t ())
 countSession_ dt = countSession dt <*> pure ()

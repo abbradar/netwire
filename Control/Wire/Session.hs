@@ -34,10 +34,10 @@ data Quit = Quit | NoQuit
 
 reactimate ::
     (Monad m)
-    => m a                 -- ^ Input generator.
-    -> (Either e b -> m Quit)   -- ^ Process output.
-    -> Session m ds        -- ^ State delta generator.
-    -> WireP ds e a b      -- ^ Wire to run.
+    => m a                -- ^ Input generator.
+    -> (Either e b -> m Quit)  -- ^ Process output.
+    -> Session m s        -- ^ State delta generator.
+    -> WireP s e a b      -- ^ Wire to run.
     -> m ()
 reactimate getInput process s0 w0 =
     reactimateM getInput process id s0 w0
@@ -50,8 +50,8 @@ reactimateM ::
     => m a                 -- ^ Input generator.
     -> (Either e b -> m Quit)   -- ^ Process output.
     -> (forall a. m' a -> m a)  -- ^ Monad morphism from the wire monad.
-    -> Session m ds        -- ^ State delta generator.
-    -> Wire ds e m' a b    -- ^ Wire to run.
+    -> Session m s         -- ^ State delta generator.
+    -> Wire s e m' a b     -- ^ Wire to run.
     -> m ()
 reactimateM getInput process m = loop
     where
@@ -71,8 +71,8 @@ testWire ::
     (MonadIO m, Show b, Show e)
     => Int  -- ^ Show output every this number of iterations.
     -> m a  -- ^ Input generator.
-    -> Session m ds    -- ^ State delta generator.
-    -> WireP ds e a b  -- ^ Wire to run.
+    -> Session m s    -- ^ State delta generator.
+    -> WireP s e a b  -- ^ Wire to run.
     -> m c
 testWire n getInput s0 w0 = testWireM n getInput id s0 w0
 
@@ -83,8 +83,8 @@ testWire n getInput s0 w0 = testWireM n getInput id s0 w0
 testWire_ ::
     (MonadIO m, Show b, Show e)
     => Int  -- ^ Show output every this number of iterations.
-    -> Session m ds           -- ^ State delta generator.
-    -> (forall a. WireP ds e a b)  -- ^ Wire to run.
+    -> Session m s           -- ^ State delta generator.
+    -> (forall a. WireP s e a b)  -- ^ Wire to run.
     -> m c
 testWire_ n s0 w0 = testWireM_ n id s0 w0
 
@@ -96,8 +96,8 @@ testWireM ::
     => Int  -- ^ Show output every this number of iterations.
     -> m a  -- ^ Input generator.
     -> (forall a. m' a -> m a)  -- ^ Monad morphism from the wire monad.
-    -> Session m ds        -- ^ State delta generator.
-    -> Wire ds e m' a b    -- ^ Wire to run.
+    -> Session m s         -- ^ State delta generator.
+    -> Wire s e m' a b     -- ^ Wire to run.
     -> m c
 testWireM n getInput m = loop 0
     where
@@ -122,8 +122,8 @@ testWireM n getInput m = loop 0
 testWireM_ ::
     (Monad m', MonadIO m, Show b, Show e)
     => Int  -- ^ Show output every this number of iterations.
-    -> (forall a. m' a -> m a)       -- ^ Monad morphism from the wire monad.
-    -> Session m ds             -- ^ State delta generator.
-    -> (forall a. Wire ds e m' a b)  -- ^ Wire to run.
+    -> (forall a. m' a -> m a)      -- ^ Monad morphism from the wire monad.
+    -> Session m s             -- ^ State delta generator.
+    -> (forall a. Wire s e m' a b)  -- ^ Wire to run.
     -> m c
 testWireM_ n m s0 w0 = testWireM n (return ()) m s0 w0

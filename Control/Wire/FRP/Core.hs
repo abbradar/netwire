@@ -14,7 +14,6 @@ module Control.Wire.FRP.Core
     )
     where
 
-import Control.Applicative
 import Control.Wire.State
 import Control.Wire.Wire
 
@@ -24,11 +23,11 @@ import Control.Wire.Wire
 -- the granularity of your clock resp. your framerate.
 
 iterateW ::
-    (HasTime t ds, Monad m)
+    (HasTime t s, Monad m)
     => t         -- ^ Positive time interval before next value.
     -> (b -> b)  -- ^ Step size.
     -> b         -- ^ Start value.
-    -> Wire ds e m a b
+    -> Wire s e m a b
 iterateW int _ | int <= 0 = error "iterateW: Non-positive time interval"
 iterateW int f = loop 0
     where
@@ -43,13 +42,13 @@ iterateW int f = loop 0
 
 -- | Current local time starting from zero.
 
-time :: (HasTime t ds, Monad m) => Wire ds e m a t
+time :: (HasTime t s, Monad m) => Wire s e m a t
 time = timeFrom 0
 
 
 -- | Current local time starting from the given value.
 
-timeFrom :: (HasTime t ds, Monad m) => t -> Wire ds e m a t
+timeFrom :: (HasTime t s, Monad m) => t -> Wire s e m a t
 timeFrom t' =
     mkPure $ \ds _ ->
         let t = t' + dtime ds

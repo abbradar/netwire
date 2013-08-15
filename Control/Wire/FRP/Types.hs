@@ -27,7 +27,7 @@ type Event = Maybe
 
 -- | Occasions are identity-like wires that may inhibit.
 
-type Occasion ds e m a = Wire ds e m a a
+type Occasion s e m a = Wire s e m a a
 
 
 -- | Simple wires.

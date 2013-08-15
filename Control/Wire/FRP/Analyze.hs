@@ -52,10 +52,10 @@ import Prelude hiding ((.), id)
 --   given time interval.
 
 avg ::
-    (Fractional a, Fractional t, HasTime t ds, Monad m, Monoid e)
+    (Fractional a, Fractional t, HasTime t s, Monad m, Monoid e)
     => t    -- ^ Interval size.
     -> Int  -- ^ Number of data points to use.
-    -> Wire ds e m a a
+    -> Wire s e m a a
 avg int n = (/ fromIntegral n) . F.foldl' (+) 0 <$> graphN int n
 
 
@@ -72,18 +72,18 @@ avg int n = (/ fromIntegral n) . F.foldl' (+) 0 <$> graphN int n
 --   given time interval.
 
 avgFps ::
-    (Fractional b, Fractional t, HasTime t ds, Monad m, Monoid e)
+    (Fractional b, Fractional t, HasTime t s, Monad m, Monoid e)
     => t    -- ^ Interval size.
     -> Int  -- ^ Number of data points to use.
-    -> Wire ds e m a b
+    -> Wire s e m a b
 avgFps int n = avg int n . framerate
 
 
 -- | Current framerate.
 
 framerate ::
-    (Fractional b, HasTime t ds, Monad m, Monoid e)
-    => Wire ds e m a b
+    (Fractional b, HasTime t s, Monad m, Monoid e)
+    => Wire s e m a b
 framerate =
     mkPure_ $ \ds _ ->
         let dt = dtime ds in
@@ -108,9 +108,9 @@ framerate =
 --   given time interval.
 
 graph ::
-    (Fractional a, Fractional t, HasTime t ds, Monad m, Monoid e)
+    (Fractional a, Fractional t, HasTime t s, Monad m, Monoid e)
     => [t]  -- ^ Data points to produce.
-    -> Wire ds e m a (Map t a)
+    -> Wire s e m a (Map t a)
 graph qts = loop 0 M.empty
     where
     earliest = maximum (map abs qts)
@@ -153,10 +153,10 @@ graph qts = loop 0 M.empty
 --   given time interval.
 
 graphN ::
-    (Fractional a, Fractional t, HasTime t ds, Monad m, Monoid e)
+    (Fractional a, Fractional t, HasTime t s, Monad m, Monoid e)
     => t    -- ^ Interval to graph from now.
     -> Int  -- ^ Number of data points to produce.
-    -> Wire ds e m a (Map t a)
+    -> Wire s e m a (Map t a)
 graphN int n
     | int <= 0 = error "graphN: Non-positive interval"
     | n <= 0   = error "graphN: Non-positive number of data points"
@@ -169,7 +169,7 @@ graphN int n =
 --
 -- * Depends: now.
 
-highPeak :: (Monad m, Monoid ds, Ord a) => Wire ds e m a a
+highPeak :: (Monad m, Monoid s, Ord a) => Wire s e m a a
 highPeak = highPeakBy compare
 
 
@@ -177,7 +177,7 @@ highPeak = highPeakBy compare
 --
 -- * Depends: now.
 
-highPeakBy :: (Monad m, Monoid ds) => (a -> a -> Ordering) -> Wire ds e m a a
+highPeakBy :: (Monad m, Monoid s) => (a -> a -> Ordering) -> Wire s e m a a
 highPeakBy = peakBy GT
 
 
@@ -185,7 +185,7 @@ highPeakBy = peakBy GT
 --
 -- * Depends: now.
 
-lowPeak :: (Monad m, Monoid ds, Ord a) => Wire ds e m a a
+lowPeak :: (Monad m, Monoid s, Ord a) => Wire s e m a a
 lowPeak = lowPeakBy compare
 
 
@@ -193,17 +193,17 @@ lowPeak = lowPeakBy compare
 --
 -- * Depends: now.
 
-lowPeakBy :: (Monad m, Monoid ds) => (a -> a -> Ordering) -> Wire ds e m a a
+lowPeakBy :: (Monad m, Monoid s) => (a -> a -> Ordering) -> Wire s e m a a
 lowPeakBy = peakBy LT
 
 
 -- | Given peak with respect to the given comparison function.
 
 peakBy ::
-    (Monad m, Monoid ds)
+    (Monad m, Monoid s)
     => Ordering
     -> (a -> a -> Ordering)
-    -> Wire ds e m a a
+    -> Wire s e m a a
 peakBy o comp = mkPure $ \_ x -> (Right x, loop x)
     where
     loop x' =

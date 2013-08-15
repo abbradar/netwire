@@ -25,9 +25,9 @@ import Data.Monoid
 -- * Inhibits: until the given interval has passed.
 
 after ::
-    (HasTime t ds, Monad m, Monoid e)
+    (HasTime t s, Monad m, Monoid e)
     => t
-    -> Occasion ds e m a
+    -> Occasion s e m a
 after t' =
     mkPure $ \ds x ->
         let t = t' - dtime ds in
@@ -43,9 +43,9 @@ after t' =
 -- * Inhibits: after the given interval has passed.
 
 for ::
-    (HasTime t ds, Monad m, Monoid e)
+    (HasTime t s, Monad m, Monoid e)
     => t
-    -> Occasion ds e m a
+    -> Occasion s e m a
 for t' =
     mkPure $ \ds x ->
         let t = t' - dtime ds in

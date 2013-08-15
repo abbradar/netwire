@@ -15,9 +15,9 @@ import Control.Wire.Wire
 
 (-->) ::
     (Monad m)
-    => Wire ds e m a b
-    -> Wire ds e m a b
-    -> Wire ds e m a b
+    => Wire s e m a b
+    -> Wire s e m a b
+    -> Wire s e m a b
 Wire f --> w2 =
     Wire $ \ds mx' -> do
         (mx, w1) <- f ds mx'
