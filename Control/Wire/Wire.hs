@@ -109,8 +109,8 @@ instance (Monad m) => Arrow (Wire s e m) where
 --               Right (Right x) ->
 --                   liftM2 (\(_, wl) (mxr, wr) -> (fmap Right mxr, wl +++ wr))
 --                          (f ds (Left mempty)) (g ds (Right x))
---               --Left ex ->
---               --    liftM2 (\(mxl, wl) (mxr, wr) -> 
+--               Left ex ->
+--                   liftM2 (\(mxl, wl) (mxr, wr) -> 
 
 instance (Monad m, Monoid e) => ArrowPlus (Wire s e m) where
     (<+>) = (<|>)
