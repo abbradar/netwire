@@ -9,15 +9,15 @@ module Main where
 import Control.Arrow
 import Control.Wire
 import Control.Wire.FRP
+import Linear
 import Prelude hiding ((.), id)
 import Text.Printf
 
 
-wire :: WireP' a Double
+wire :: WireP' a (V2 Double)
 wire =
     proc _ -> do
-        rec x <- integral 0.1 -< 5*x
-        id -< x
+        integralWith (\_ -> signorm) (V2 1 0) -< (V2 0 1, ())
 
     where
     t :: WireP' a Double
