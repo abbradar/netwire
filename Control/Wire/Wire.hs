@@ -10,7 +10,6 @@ module Control.Wire.Wire
       WireP,
 
       -- * Helpers
-      identity,
       mapWire,
 
       -- * Low level
@@ -181,12 +180,6 @@ instance (Monad m, Num b) => Num (Wire s e m a b) where
 type WireP s e a b =
     forall m. (Monad m)
     => Wire s e m a b
-
-
--- | Identity wire.
-
-identity :: (Monad m) => Wire s e m a a
-identity = let w = Wire (\_ mx -> return (mx, w)) in w
 
 
 -- | Apply the given monad morphism to the given wire.

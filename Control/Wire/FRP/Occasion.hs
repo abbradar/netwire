@@ -12,10 +12,12 @@ module Control.Wire.FRP.Occasion
     where
 
 import Control.Applicative
+import Control.Category
 import Control.Wire.FRP.Types
 import Control.Wire.State
 import Control.Wire.Wire
 import Data.Monoid
+import Prelude hiding ((.), id)
 
 
 -- | After the given interval has passed.
@@ -32,7 +34,7 @@ after t' =
     mkPure $ \ds x ->
         let t = t' - dtime ds in
         if t <= 0
-          then (Right x, identity)
+          then (Right x, id)
           else (Left mempty, after t)
 
 
