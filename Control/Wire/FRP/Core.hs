@@ -10,12 +10,39 @@ module Control.Wire.FRP.Core
       timeFrom,
 
       -- * Unfold
-      iterateW
+      iterateW,
+      list
     )
     where
 
+import Control.Applicative
 import Control.Wire.State
 import Control.Wire.Wire
+import Data.Monoid
+
+
+-- | Produce a staircase of the values in the given list.  For each @(x,
+-- t)@ in the list, the value @x@ is produced for the duration @t@.  The
+-- duration must be non-negative.
+--
+-- * Inhibits: after all values have been produced.
+
+list ::
+    (HasTime t s, Monad m, Monoid e)
+    => [(b, t)]
+    -> Wire s e m a b
+list [] = empty
+list xs' =
+    mkPure $ \ds _ ->
+        let (mx, xs) = next (dtime ds) xs' in
+        (mx, list xs)
+
+    where
+    next _ [] = (Left mempty, [])
+    next ds ((x, t) : xs)
+        | t < 0     = error "listW: Negative time interval"
+        | ds < t    = (Right x, (x, t - ds) : xs)
+        | otherwise = next (ds - t) xs
 
 
 -- | Iterate from the given start value using the given step function.
