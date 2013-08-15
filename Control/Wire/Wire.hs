@@ -49,8 +49,6 @@ instance (Monad m, Monoid e) => Alternative (Wire s e m a) where
                    (f ds mx')
                    (g ds mx')
 
-        where
-
 instance (Monad m) => Applicative (Wire s e m a) where
     pure x = let w = Wire (\_ mx -> return (x <$ mx, w)) in w
 
