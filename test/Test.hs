@@ -6,6 +6,7 @@
 
 module Main where
 
+import qualified Control.Wire.Timeline as Tl
 import Control.Arrow
 import Control.Wire
 import Control.Wire.FRP
@@ -15,7 +16,7 @@ import Text.Printf
 
 wire :: WireP' a Double
 wire =
-    stdNoise 0.01 15
+    lAvg 1 10000 . framerate
 
     where
     t :: WireP' a Double
@@ -24,4 +25,4 @@ wire =
 
 main :: IO ()
 main =
-    testWire_ 0 clockSession_ wire
+    testWire_ 1000 clockSession_ wire

@@ -50,6 +50,7 @@ library
         Control.Wire.FRP.Types
         Control.Wire.Session
         Control.Wire.State
+        Control.Wire.Timeline
         Control.Wire.Wire
 
 executable netwire-test
