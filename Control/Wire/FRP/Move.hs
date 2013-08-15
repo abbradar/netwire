@@ -40,6 +40,8 @@ integral x' =
 -- The correction function must be idempotent with respect to the world
 -- value: @f w (f w x) = f w x@.  This is necessary and sufficient to
 -- protect time continuity.
+--
+-- * Depends: before now.
 
 integralWith ::
     (Additive f, Fractional a, HasTime t s, Monad m)
