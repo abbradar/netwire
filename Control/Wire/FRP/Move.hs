@@ -5,7 +5,8 @@
 -- Maintainer: Ertugrul Soeylemez <es@ertes.de>
 
 module Control.Wire.FRP.Move
-    ( -- * Integrals
+    ( -- * Calculus
+      derivative,
       integral,
       integralWith
     )
@@ -13,25 +14,46 @@ module Control.Wire.FRP.Move
 
 import Control.Wire.State
 import Control.Wire.Wire
-import Linear.Vector
+import Data.Monoid
 
 
--- | Integrate the input signal.
+-- | Time derivative of the input signal.
+--
+-- * Depends: now.
+--
+-- * Inhibits: at singularities.
+
+derivative ::
+    (RealFloat a, HasTime t s, Monad m, Monoid e)
+    => Wire s e m a a
+derivative = mkPure $ \_ x -> (Left mempty, loop x)
+    where
+    loop x' =
+        mkPure $ \ds x ->
+            let dt  = realToFrac (dtime ds)
+                dx  = (x - x') / dt
+                mdx | isNaN dx      = Right 0
+                    | isInfinite dx = Left mempty
+                    | otherwise     = Right dx
+            in mdx `seq` (mdx, loop x)
+
+
+-- | Integrate the input signal over time.
 --
 -- * Depends: before now.
 
 integral ::
-    (Additive f, Fractional a, HasTime t s, Monad m)
-    => f a  -- ^ Integration constant (aka start value).
-    -> Wire s e m (f a) (f a)
+    (Fractional a, HasTime t s, Monad m)
+    => a  -- ^ Integration constant (aka start value).
+    -> Wire s e m a a
 integral x' =
     mkPure $ \ds dx ->
         let dt = realToFrac (dtime ds)
-        in x' `seq` (Right x', integral (x' ^+^ dt*^dx))
+        in x' `seq` (Right x', integral (x' + dt*dx))
 
 
--- | Integrate the left input signal, but apply the given correction
--- function to it.  This can be used to implement collision
+-- | Integrate the left input signal over time, but apply the given
+-- correction function to it.  This can be used to implement collision
 -- detection/reaction.
 --
 -- The right signal of type @w@ is the /world value/.  It is just passed
@@ -44,14 +66,14 @@ integral x' =
 -- * Depends: before now.
 
 integralWith ::
-    (Additive f, Fractional a, HasTime t s, Monad m)
-    => (w -> f a -> f a)  -- ^ Correction function.
-    -> f a                -- ^ Integration constant (aka start value).
-    -> Wire s e m (f a, w) (f a)
+    (Fractional a, HasTime t s, Monad m)
+    => (w -> a -> a)  -- ^ Correction function.
+    -> a              -- ^ Integration constant (aka start value).
+    -> Wire s e m (a, w) a
 integralWith correct = loop
     where
     loop x' =
         mkPure $ \ds (dx, w) ->
             let dt = realToFrac (dtime ds)
-                x  = correct w (x' ^+^ dt*^dx)
+                x  = correct w (x' + dt*dx)
             in x' `seq` (Right x', loop x)

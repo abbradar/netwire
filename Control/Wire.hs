@@ -14,11 +14,6 @@ module Control.Wire
       module Control.Applicative,
       module Control.Arrow,
       module Control.Category,
-      module Linear.V1,
-      module Linear.V2,
-      module Linear.V3,
-      module Linear.V4,
-      module Linear.Vector,
       NominalDiffTime
     )
     where
@@ -30,8 +25,3 @@ import Control.Wire.Session
 import Control.Wire.State
 import Control.Wire.Wire
 import Data.Time.Clock
-import Linear.V1
-import Linear.V2
-import Linear.V3
-import Linear.V4
-import Linear.Vector

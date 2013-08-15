@@ -9,15 +9,13 @@ module Main where
 import Control.Arrow
 import Control.Wire
 import Control.Wire.FRP
-import Linear
 import Prelude hiding ((.), id)
 import Text.Printf
 
 
-wire :: WireP' a (V2 Double)
+wire :: WireP' a Double
 wire =
-    proc _ -> do
-        integralWith (\_ -> signorm) (V2 1 0) -< (V2 0 1, ())
+    avgFps 0.5 10
 
     where
     t :: WireP' a Double
