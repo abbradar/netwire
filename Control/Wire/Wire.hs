@@ -10,6 +10,7 @@ module Control.Wire.Wire
       WireP,
 
       -- * Helpers
+      combineSig,
       mapWire,
 
       -- * Low level
@@ -44,14 +45,11 @@ instance (Monad m, Monoid e) => Alternative (Wire s e m a) where
 
     Wire f <|> Wire g =
         Wire $ \ds mx' ->
-            liftM2 (\(mx1, w1) (mx2, w2) -> (combined mx1 mx2, w1 <|> w2))
+            liftM2 (\(mx1, w1) (mx2, w2) -> (combineSig mx1 mx2, w1 <|> w2))
                    (f ds mx')
                    (g ds mx')
 
         where
-        combined (Right x1) _ = Right x1
-        combined _ (Right x2) = Right x2
-        combined (Left ex1) (Left ex2) = Left (ex1 <> ex2)
 
 instance (Monad m) => Applicative (Wire s e m a) where
     pure x = let w = Wire (\_ mx -> return (x <$ mx, w)) in w
@@ -180,6 +178,14 @@ instance (Monad m, Num b) => Num (Wire s e m a b) where
 type WireP s e a b =
     forall m. (Monad m)
     => Wire s e m a b
+
+
+-- | Combine the given two signals, left-biased.
+
+combineSig :: (Monoid e) => Either e a -> Either e a -> Either e a
+combineSig (Right x1) _          = Right x1
+combineSig _ (Right x2)          = Right x2
+combineSig (Left ex1) (Left ex2) = Left (ex1 <> ex2)
 
 
 -- | Apply the given monad morphism to the given wire.
