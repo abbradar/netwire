@@ -13,12 +13,11 @@ import Prelude hiding ((.), id)
 import Text.Printf
 
 
-wire :: WireP' a String
+wire :: WireP' a Double
 wire =
-    "hey!" . for 2 -->
-    "yo!" . for 2 -->
-    "groovy!" . for 2 -->
-    fmap show (timeFrom 6)
+    proc _ -> do
+        rec x <- integral 0.1 -< 5*x
+        id -< x
 
     where
     t :: WireP' a Double

@@ -25,13 +25,22 @@ import Control.Applicative
 import Control.Arrow
 import Control.Category
 import Control.Monad
+import Control.Monad.Fix
 import Data.Monoid
 import Data.String
 import Prelude hiding ((.), id)
 
 
 -- | A wire represents a reactive value that may depend on other
--- reactive values.
+-- reactive values.  Wires must satisfy the inhibition propagation law:
+--
+-- > stepWire w' ds (Left ex) =
+-- >     liftM (\(_, w) -> (Left ex, w))
+-- >           (stepWire w' ds (Left ex))
+--
+-- Smart constructors like 'mkWire', 'mkPure' and their variants make
+-- sure that this law is satisfied.  In general it is best to use the
+-- FRP interface (see "Control.Wire.FRP").
 
 newtype Wire s e m a b =
     Wire {
@@ -83,32 +92,50 @@ instance (Monad m) => Arrow (Wire s e m) where
                    (f ds (fmap fst mxy'))
                    (g ds (fmap snd mxy'))
 
--- instance (Monad m, Monoid e) => ArrowChoice (Wire s e m) where
---     left (Wire f) =
---         Wire $ \ds mmx ->
---             case mmx of
---               Right (Left x)  -> liftM (fmap Left *** left) (f ds (Right x))
---               Right (Right _) -> liftM (fmap Left *** left) (f ds (Left mempty))
---               Left ex         -> liftM (fmap Left *** left) (f ds (Left ex))
+instance (Monad m, Monoid e) => ArrowChoice (Wire s e m) where
+    left (Wire f) =
+        Wire $ \ds mmx ->
+            case mmx of
+              Right (Left x)  -> liftM (fmap Left *** left) (f ds (Right x))
+              Right (Right x) -> liftM (const (Right (Right x)) *** left) (f ds (Left mempty))
+              Left ex         -> liftM (fmap Left *** left) (f ds (Left ex))
 
---     right (Wire f) =
---         Wire $ \ds mmx ->
---             case mmx of
---               Right (Right x) -> liftM (fmap Right *** right) (f ds (Right x))
---               Right (Left _)  -> liftM (fmap Right *** right) (f ds (Left mempty))
---               Left ex         -> liftM (fmap Right *** right) (f ds (Left ex))
+    right (Wire f) =
+        Wire $ \ds mmx ->
+            case mmx of
+              Right (Right x) -> liftM (fmap Right *** right) (f ds (Right x))
+              Right (Left x)  -> liftM (const (Right (Left x)) *** right) (f ds (Left mempty))
+              Left ex         -> liftM (fmap Right *** right) (f ds (Left ex))
 
---     Wire f +++ Wire g =
---         Wire $ \ds mmx ->
---             case mmx of
---               Right (Left x) ->
---                   liftM2 (\(mxl, wl) (_, wr) -> (fmap Left mxl, wl +++ wr))
---                          (f ds (Right x)) (g ds (Left mempty))
---               Right (Right x) ->
---                   liftM2 (\(_, wl) (mxr, wr) -> (fmap Right mxr, wl +++ wr))
---                          (f ds (Left mempty)) (g ds (Right x))
---               Left ex ->
---                   liftM2 (\(mxl, wl) (mxr, wr) -> 
+    Wire f +++ Wire g =
+        Wire $ \ds mmx ->
+            let (mxl', mxr', choose) =
+                    case mmx of
+                      Right (Left x)  -> (Right x, Left mempty, const . Left)
+                      Right (Right x) -> (Left mempty, Right x, const Right)
+                      Left ex         -> (Left ex, Left ex, \_ _ -> error "(+++): Wire breaks inhibition law")
+            in liftM2 (\(mxl, wl) (mxr, wr) -> (liftA2 choose mxl mxr, wl +++ wr))
+                      (f ds mxl') (g ds mxr')
+
+    Wire f ||| Wire g =
+        Wire $ \ds mmx ->
+            let (mxl', mxr', choose) =
+                    case mmx of
+                      Right (Left x)  -> (Right x, Left mempty, const)
+                      Right (Right x) -> (Left mempty, Right x, const id)
+                      Left ex         -> (Left ex, Left ex, \_ _ -> error "(|||): Wire breaks inhibition law")
+            in liftM2 (\(mxl, wl) (mxr, wr) -> (liftA2 choose mxl mxr, wl ||| wr))
+                      (f ds mxl') (g ds mxr')
+
+instance (MonadFix m, Monoid e) => ArrowLoop (Wire s e m) where
+    loop (Wire f) =
+        Wire $ \ds mx' -> do
+            (mx, w) <-
+                mfix $ \r ->
+                    let err = error "Feedback broken by inhibition"
+                        d   = either (const err) snd (fst r)
+                    in f ds (fmap (, d) mx')
+            return (fmap fst mx, loop w)
 
 instance (Monad m, Monoid e) => ArrowPlus (Wire s e m) where
     (<+>) = (<|>)
@@ -174,7 +201,7 @@ instance (Monad m, Num b) => Num (Wire s e m a b) where
 -- | Pure wires.
 
 type WireP s e a b =
-    forall m. (Monad m)
+    forall m. (MonadFix m)
     => Wire s e m a b
 
 

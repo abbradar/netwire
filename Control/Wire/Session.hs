@@ -21,6 +21,7 @@ import Control.Monad.IO.Class
 import Control.Wire.State
 import Control.Wire.Wire
 import Data.Data
+import Data.Functor.Identity
 import System.IO
 
 
@@ -40,7 +41,7 @@ reactimate ::
     -> WireP s e a b      -- ^ Wire to run.
     -> m ()
 reactimate getInput process s0 w0 =
-    reactimateM getInput process id s0 w0
+    reactimateM getInput process (return . runIdentity) s0 w0
 
 
 -- | Like 'reactimate', but for effectful wires.
@@ -74,7 +75,8 @@ testWire ::
     -> Session m s    -- ^ State delta generator.
     -> WireP s e a b  -- ^ Wire to run.
     -> m c
-testWire n getInput s0 w0 = testWireM n getInput id s0 w0
+testWire n getInput s0 w0 =
+    testWireM n getInput (return . runIdentity) s0 w0
 
 
 -- | Simplified interface to 'testWire' for wires that ignore their
@@ -86,7 +88,8 @@ testWire_ ::
     -> Session m s           -- ^ State delta generator.
     -> (forall a. WireP s e a b)  -- ^ Wire to run.
     -> m c
-testWire_ n s0 w0 = testWireM_ n id s0 w0
+testWire_ n s0 w0 =
+    testWireM_ n (return . runIdentity) s0 w0
 
 
 -- | Like 'testWire', but for effectful wires.

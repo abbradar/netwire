@@ -42,6 +42,7 @@ library
         Control.Wire.FRP
         Control.Wire.FRP.Analyze
         Control.Wire.FRP.Core
+        Control.Wire.FRP.Move
         Control.Wire.FRP.Occasion
         Control.Wire.FRP.Switch
         Control.Wire.FRP.Types
@@ -56,7 +57,9 @@ executable netwire-test
         netwire
     default-language: Haskell2010
     default-extensions:
+        Arrows
         OverloadedStrings
+        RecursiveDo
     ghc-options: -threaded -rtsopts
     hs-source-dirs: test
     main-is: Test.hs
