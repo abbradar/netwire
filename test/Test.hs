@@ -13,10 +13,7 @@ import Prelude hiding ((.), id)
 import Text.Printf
 
 
-type MyWire = Wire' IO
-
-
-wire :: MyWire a String
+wire :: WireP' a String
 wire =
     "hey!" . for 2 -->
     "yo!" . for 2 -->
@@ -24,7 +21,7 @@ wire =
     fmap show (timeFrom 6)
 
     where
-    t :: MyWire a Double
+    t :: WireP' a Double
     t = fmap realToFrac time
 
 

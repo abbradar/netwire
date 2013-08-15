@@ -52,7 +52,7 @@ import Prelude hiding ((.), id)
 --   given time interval.
 
 avg ::
-    (Applicative m, Fractional a, Fractional t, HasTime t ds, Monoid e)
+    (Fractional a, Fractional t, HasTime t ds, Monad m, Monoid e)
     => t    -- ^ Interval size.
     -> Int  -- ^ Number of data points to use.
     -> Wire ds e m a a
@@ -72,7 +72,7 @@ avg int n = (/ fromIntegral n) . F.foldl' (+) 0 <$> graphN int n
 --   given time interval.
 
 avgFps ::
-    (Applicative m, Fractional b, Fractional t, HasTime t ds, Monad m, Monoid e)
+    (Fractional b, Fractional t, HasTime t ds, Monad m, Monoid e)
     => t    -- ^ Interval size.
     -> Int  -- ^ Number of data points to use.
     -> Wire ds e m a b
@@ -82,7 +82,7 @@ avgFps int n = avg int n . framerate
 -- | Current framerate.
 
 framerate ::
-    (Applicative m, Fractional b, HasTime t ds, Monoid e)
+    (Fractional b, HasTime t ds, Monad m, Monoid e)
     => Wire ds e m a b
 framerate =
     mkPure_ $ \ds _ ->
@@ -108,7 +108,7 @@ framerate =
 --   given time interval.
 
 graph ::
-    (Applicative m, Fractional a, Fractional t, HasTime t ds, Monoid e)
+    (Fractional a, Fractional t, HasTime t ds, Monad m, Monoid e)
     => [t]  -- ^ Data points to produce.
     -> Wire ds e m a (Map t a)
 graph qts = loop 0 M.empty
@@ -153,7 +153,7 @@ graph qts = loop 0 M.empty
 --   given time interval.
 
 graphN ::
-    (Applicative m, Fractional a, Fractional t, HasTime t ds, Monoid e)
+    (Fractional a, Fractional t, HasTime t ds, Monad m, Monoid e)
     => t    -- ^ Interval to graph from now.
     -> Int  -- ^ Number of data points to produce.
     -> Wire ds e m a (Map t a)
@@ -169,7 +169,7 @@ graphN int n =
 --
 -- * Depends: now.
 
-highPeak :: (Applicative m, Monoid ds, Ord a) => Wire ds e m a a
+highPeak :: (Monad m, Monoid ds, Ord a) => Wire ds e m a a
 highPeak = highPeakBy compare
 
 
@@ -177,7 +177,7 @@ highPeak = highPeakBy compare
 --
 -- * Depends: now.
 
-highPeakBy :: (Applicative m, Monoid ds) => (a -> a -> Ordering) -> Wire ds e m a a
+highPeakBy :: (Monad m, Monoid ds) => (a -> a -> Ordering) -> Wire ds e m a a
 highPeakBy = peakBy GT
 
 
@@ -185,7 +185,7 @@ highPeakBy = peakBy GT
 --
 -- * Depends: now.
 
-lowPeak :: (Applicative m, Monoid ds, Ord a) => Wire ds e m a a
+lowPeak :: (Monad m, Monoid ds, Ord a) => Wire ds e m a a
 lowPeak = lowPeakBy compare
 
 
@@ -193,14 +193,14 @@ lowPeak = lowPeakBy compare
 --
 -- * Depends: now.
 
-lowPeakBy :: (Applicative m, Monoid ds) => (a -> a -> Ordering) -> Wire ds e m a a
+lowPeakBy :: (Monad m, Monoid ds) => (a -> a -> Ordering) -> Wire ds e m a a
 lowPeakBy = peakBy LT
 
 
 -- | Given peak with respect to the given comparison function.
 
 peakBy ::
-    (Applicative m, Monoid ds)
+    (Monad m, Monoid ds)
     => Ordering
     -> (a -> a -> Ordering)
     -> Wire ds e m a a

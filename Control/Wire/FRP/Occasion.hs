@@ -25,7 +25,7 @@ import Data.Monoid
 -- * Inhibits: until the given interval has passed.
 
 after ::
-    (Applicative m, HasTime t ds, Monoid e)
+    (HasTime t ds, Monad m, Monoid e)
     => t
     -> Occasion ds e m a
 after t' =
@@ -43,7 +43,7 @@ after t' =
 -- * Inhibits: after the given interval has passed.
 
 for ::
-    (Applicative m, HasTime t ds, Monoid e)
+    (HasTime t ds, Monad m, Monoid e)
     => t
     -> Occasion ds e m a
 for t' =

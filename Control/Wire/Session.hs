@@ -7,14 +7,16 @@
 module Control.Wire.Session
     ( -- * Run wire sessions
       reactimate,
+      reactimateM,
 
       -- * Test wires
       testWire,
-      testWire_
+      testWire_,
+      testWireM,
+      testWireM_
     )
     where
 
-import Control.Applicative
 import Control.Monad.IO.Class
 import Control.Wire.State
 import Control.Wire.Wire
@@ -32,17 +34,31 @@ data Quit = Quit | NoQuit
 
 reactimate ::
     (Monad m)
-    => m a                -- ^ Input generator.
-    -> (Either e b -> m Quit)  -- ^ Process output.
-    -> Session m ds       -- ^ State delta generator.
-    -> Wire ds e m a b    -- ^ Wire to run.
+    => m a                 -- ^ Input generator.
+    -> (Either e b -> m Quit)   -- ^ Process output.
+    -> Session m ds        -- ^ State delta generator.
+    -> WireP ds e a b      -- ^ Wire to run.
     -> m ()
-reactimate getInput process = loop
+reactimate getInput process s0 w0 =
+    reactimateM getInput process id s0 w0
+
+
+-- | Like 'reactimate', but for effectful wires.
+
+reactimateM ::
+    (Monad m, Monad m')
+    => m a                 -- ^ Input generator.
+    -> (Either e b -> m Quit)   -- ^ Process output.
+    -> (forall a. m' a -> m a)  -- ^ Monad morphism from the wire monad.
+    -> Session m ds        -- ^ State delta generator.
+    -> Wire ds e m' a b    -- ^ Wire to run.
+    -> m ()
+reactimateM getInput process m = loop
     where
     loop s' w' = do
         x' <- getInput
         (ds, s) <- stepSession s'
-        (mx, w) <- stepWire w' ds (Right x')
+        (mx, w) <- m (stepWire w' ds (Right x'))
         q <- process mx
         case q of
           Quit   -> return ()
@@ -55,15 +71,40 @@ testWire ::
     (MonadIO m, Show b, Show e)
     => Int  -- ^ Show output every this number of iterations.
     -> m a  -- ^ Input generator.
-    -> Session m ds     -- ^ State delta generator.
-    -> Wire ds e m a b  -- ^ Wire to run.
+    -> Session m ds    -- ^ State delta generator.
+    -> WireP ds e a b  -- ^ Wire to run.
     -> m c
-testWire n getInput = loop 0
+testWire n getInput s0 w0 = testWireM n getInput id s0 w0
+
+
+-- | Simplified interface to 'testWire' for wires that ignore their
+-- input.
+
+testWire_ ::
+    (MonadIO m, Show b, Show e)
+    => Int  -- ^ Show output every this number of iterations.
+    -> Session m ds           -- ^ State delta generator.
+    -> (forall a. WireP ds e a b)  -- ^ Wire to run.
+    -> m c
+testWire_ n s0 w0 = testWireM_ n id s0 w0
+
+
+-- | Like 'testWire', but for effectful wires.
+
+testWireM ::
+    (Monad m', MonadIO m, Show b, Show e)
+    => Int  -- ^ Show output every this number of iterations.
+    -> m a  -- ^ Input generator.
+    -> (forall a. m' a -> m a)  -- ^ Monad morphism from the wire monad.
+    -> Session m ds        -- ^ State delta generator.
+    -> Wire ds e m' a b    -- ^ Wire to run.
+    -> m c
+testWireM n getInput m = loop 0
     where
     loop i s' w' = do
         x' <- getInput
         (ds, s) <- stepSession s'
-        (mx, w) <- stepWire w' ds (Right x')
+        (mx, w) <- m (stepWire w' ds (Right x'))
         if i < n
           then mx `seq` loop (succ i) s w
           else do
@@ -75,13 +116,14 @@ testWire n getInput = loop 0
               loop 0 s w
 
 
--- | Simplified interface to 'testWire' for wires that ignore their
--- input and use a simple state delta generator.
+-- | Simplified interface to 'testWireM' for wires that ignore their
+-- input.
 
-testWire_ ::
-    (Applicative m, MonadIO m, Show b, Show e)
+testWireM_ ::
+    (Monad m', MonadIO m, Show b, Show e)
     => Int  -- ^ Show output every this number of iterations.
-    -> Session m ds            -- ^ State delta generator.
-    -> (forall a. Wire ds e m a b)  -- ^ Wire to run.
+    -> (forall a. m' a -> m a)       -- ^ Monad morphism from the wire monad.
+    -> Session m ds             -- ^ State delta generator.
+    -> (forall a. Wire ds e m' a b)  -- ^ Wire to run.
     -> m c
-testWire_ n s w = testWire n (return ()) s w
+testWireM_ n m s0 w0 = testWireM n (return ()) m s0 w0

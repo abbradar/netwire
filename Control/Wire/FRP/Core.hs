@@ -24,7 +24,7 @@ import Control.Wire.Wire
 -- the granularity of your clock resp. your framerate.
 
 iterateW ::
-    (Applicative m, HasTime t ds)
+    (HasTime t ds, Monad m)
     => t         -- ^ Positive time interval before next value.
     -> (b -> b)  -- ^ Step size.
     -> b         -- ^ Start value.
@@ -43,13 +43,13 @@ iterateW int f = loop 0
 
 -- | Current local time starting from zero.
 
-time :: (Applicative m, HasTime t ds) => Wire ds e m a t
+time :: (HasTime t ds, Monad m) => Wire ds e m a t
 time = timeFrom 0
 
 
 -- | Current local time starting from the given value.
 
-timeFrom :: (Applicative m, HasTime t ds) => t -> Wire ds e m a t
+timeFrom :: (HasTime t ds, Monad m) => t -> Wire ds e m a t
 timeFrom t' =
     mkPure $ \ds _ ->
         let t = t' + dtime ds
