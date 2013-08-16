@@ -14,6 +14,7 @@ module Control.Wire
       module Control.Applicative,
       module Control.Arrow,
       module Control.Category,
+      module Data.Monoid,
       NominalDiffTime
     )
     where
@@ -24,4 +25,5 @@ import Control.Category
 import Control.Wire.Session
 import Control.Wire.State
 import Control.Wire.Wire
+import Data.Monoid
 import Data.Time.Clock
