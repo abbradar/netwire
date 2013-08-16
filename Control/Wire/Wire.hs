@@ -92,40 +92,40 @@ instance (Monad m) => Arrow (Wire s e m) where
                    (f ds (fmap fst mxy'))
                    (g ds (fmap snd mxy'))
 
-instance (Monad m, Monoid e) => ArrowChoice (Wire s e m) where
-    left (Wire f) =
-        Wire $ \ds mmx ->
-            case mmx of
-              Right (Left x)  -> liftM (fmap Left *** left) (f ds (Right x))
-              Right (Right x) -> liftM (const (Right (Right x)) *** left) (f ds (Left mempty))
-              Left ex         -> liftM (fmap Left *** left) (f ds (Left ex))
+-- instance (Monad m, Monoid e) => ArrowChoice (Wire s e m) where
+--     left (Wire f) =
+--         Wire $ \ds mmx ->
+--             case mmx of
+--               Right (Left x)  -> liftM (fmap Left *** left) (f ds (Right x))
+--               Right (Right x) -> liftM (const (Right (Right x)) *** left) (f ds (Left mempty))
+--               Left ex         -> liftM (fmap Left *** left) (f ds (Left ex))
 
-    right (Wire f) =
-        Wire $ \ds mmx ->
-            case mmx of
-              Right (Right x) -> liftM (fmap Right *** right) (f ds (Right x))
-              Right (Left x)  -> liftM (const (Right (Left x)) *** right) (f ds (Left mempty))
-              Left ex         -> liftM (fmap Right *** right) (f ds (Left ex))
+--     right (Wire f) =
+--         Wire $ \ds mmx ->
+--             case mmx of
+--               Right (Right x) -> liftM (fmap Right *** right) (f ds (Right x))
+--               Right (Left x)  -> liftM (const (Right (Left x)) *** right) (f ds (Left mempty))
+--               Left ex         -> liftM (fmap Right *** right) (f ds (Left ex))
 
-    Wire f +++ Wire g =
-        Wire $ \ds mmx ->
-            let (mxl', mxr', choose) =
-                    case mmx of
-                      Right (Left x)  -> (Right x, Left mempty, const . Left)
-                      Right (Right x) -> (Left mempty, Right x, const Right)
-                      Left ex         -> (Left ex, Left ex, \_ _ -> error "(+++): Wire breaks inhibition law")
-            in liftM2 (\(mxl, wl) (mxr, wr) -> (liftA2 choose mxl mxr, wl +++ wr))
-                      (f ds mxl') (g ds mxr')
+--     Wire f +++ Wire g =
+--         Wire $ \ds mmx ->
+--             let (mxl', mxr', choose) =
+--                     case mmx of
+--                       Right (Left x)  -> (Right x, Left mempty, const . Left)
+--                       Right (Right x) -> (Left mempty, Right x, const Right)
+--                       Left ex         -> (Left ex, Left ex, \_ _ -> error "(+++): Wire breaks inhibition law")
+--             in liftM2 (\(mxl, wl) (mxr, wr) -> (liftA2 choose mxl mxr, wl +++ wr))
+--                       (f ds mxl') (g ds mxr')
 
-    Wire f ||| Wire g =
-        Wire $ \ds mmx ->
-            let (mxl', mxr', choose) =
-                    case mmx of
-                      Right (Left x)  -> (Right x, Left mempty, const)
-                      Right (Right x) -> (Left mempty, Right x, const id)
-                      Left ex         -> (Left ex, Left ex, \_ _ -> error "(|||): Wire breaks inhibition law")
-            in liftM2 (\(mxl, wl) (mxr, wr) -> (liftA2 choose mxl mxr, wl ||| wr))
-                      (f ds mxl') (g ds mxr')
+--     Wire f ||| Wire g =
+--         Wire $ \ds mmx ->
+--             let (mxl', mxr', choose) =
+--                     case mmx of
+--                       Right (Left x)  -> (Right x, Left mempty, const)
+--                       Right (Right x) -> (Left mempty, Right x, const id)
+--                       Left ex         -> (Left ex, Left ex, \_ _ -> error "(|||): Wire breaks inhibition law")
+--             in liftM2 (\(mxl, wl) (mxr, wr) -> (liftA2 choose mxl mxr, wl ||| wr))
+--                       (f ds mxl') (g ds mxr')
 
 instance (MonadFix m, Monoid e) => ArrowLoop (Wire s e m) where
     loop (Wire f) =
