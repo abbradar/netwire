@@ -49,6 +49,7 @@ library
         Control.Wire.FRP.Occasion
         Control.Wire.FRP.Switch
         Control.Wire.FRP.Types
+        Control.Wire.Semantics
         Control.Wire.Session
         Control.Wire.State
         Control.Wire.Timeline
