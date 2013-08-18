@@ -15,14 +15,14 @@ module Control.Wire.Semantics
       -- ** Constructing
       at,
       never,
-      notYet,
       now,
-      once,
       periodically,
       -- ** Combining
-      -- ** Manupulating
+      -- ** Manipulating
       delayE,
       dropE,
+      notYet,
+      once,
       takeE
     )
     where
