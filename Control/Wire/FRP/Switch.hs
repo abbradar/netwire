@@ -108,5 +108,3 @@ switch w' =
           Left _ -> return (fmap fst mx, switch w)
           Right (x, NoEvent) -> return (Right x, switch w)
           Right (_, Event w1) -> stepWire w1 mempty (Right x')
-
-infixr 1 `switch`
