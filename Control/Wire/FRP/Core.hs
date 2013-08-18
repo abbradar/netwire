@@ -7,6 +7,7 @@
 module Control.Wire.FRP.Core
     ( -- * Time
       time,
+      timeF,
       timeFrom,
 
       -- * Unfold
@@ -64,6 +65,12 @@ iterateW int f = unfold int ((\x -> (x, x)) . f)
 
 time :: (HasTime t s, Monad m) => Wire s e m a t
 time = timeFrom 0
+
+
+-- | Same as 'realToFrac' applied to current local time.
+
+timeF :: (Fractional b, HasTime t s, Monad m) => Wire s e m a b
+timeF = fmap realToFrac time
 
 
 -- | Current local time starting from the given value.
