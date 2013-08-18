@@ -83,6 +83,9 @@ stdWackelkontakt int p = wackelkontakt int p . mkStdGen
 -- | Randomly produce or inhibit with the given probability, each time
 -- for the given duration.
 --
+-- The name /Wackelkontakt/ is a Netwire running gag.  It's the German
+-- word for slack joint.
+--
 -- * Depends: now.
 
 wackelkontakt ::
