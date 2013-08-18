@@ -15,14 +15,13 @@ import Prelude hiding ((.), id)
 import Text.Printf
 
 
-wire :: WireP' a (Double, Integer)
-wire =
-    sAvg 1 . framerate &&&
-    fmap ((`mod` 101) . (^100000) . (`mod` 10) . floor) t
-
+wire :: WireP' a String
+wire = loop (cycle $ words "this is a test")
     where
-    t :: WireP' a Double
-    t = fmap realToFrac time
+    loop (txt:txts) =
+        switch $ proc _ -> do
+            swEv <- at [1] -< loop txts
+            id -< (txt, swEv)
 
 
 main :: IO ()
