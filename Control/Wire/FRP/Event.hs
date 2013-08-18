@@ -7,38 +7,26 @@
 module Control.Wire.FRP.Event
     ( -- * Events
       Event,
-      -- ** Constructing events
+
+      -- * Constructing events
       at,
       never,
       now,
-      --once,
       periodically,
 
-      -- * Unsafe interface
-      unsafeEvent
+      -- * Manipulating events
+      once,
+      takeE
     )
     where
 
 import Control.Applicative
 import Control.Arrow
+import Control.Wire.FRP.Event.Unsafe
 import Control.Wire.State
 import Control.Wire.Wire
 import Data.List
 import Data.Monoid
-import Data.Typeable
-
-
--- | Denotes a stream of values, each together with time of occurrence.
-
-data Event a = Event a | NoEvent  deriving (Show, Typeable)
-
-instance (Monoid a) => Monoid (Event a) where
-    mempty = NoEvent
-
-    mappend (Event x) (Event y) = Event $! x <> y
-    mappend (Event x) _         = Event x
-    mappend _ (Event y)         = Event y
-    mappend NoEvent NoEvent     = NoEvent
 
 
 -- | Occurs at the given times.
@@ -59,6 +47,13 @@ at = loop 0 . sort
             in (Right ev, loop t ets)
 
 
+-- | Fold the event.
+
+event :: b -> (a -> b) -> Event a -> b
+event _ e (Event x) = e x
+event n _ NoEvent   = n
+
+
 -- | Never occurs.
 
 never :: Event a
@@ -71,7 +66,17 @@ never = NoEvent
 
 now :: (Monad m, Monoid s) => Wire s e m a (Event a)
 now =
-    mkPure $ \_ x -> (Right (Event x), pure NoEvent)
+    mkPure $ \_ x -> (Right (Event x), pure never)
+
+
+-- | Only the first occurrence.
+--
+-- * Depends: now.
+
+once :: (Monad m, Monoid s) => Wire s e m (Event a) (Event a)
+once =
+    mkPure $ \_ ev ->
+        (Right ev, event once (const (pure never)) ev)
 
 
 -- | Occurs periodically, including now.
@@ -85,9 +90,12 @@ periodically ::
 periodically t = at (iterate (+ t) 0)
 
 
--- | Construct an event value.  Warning: This function allows you to
--- expose discrete time.  It should only be used by framework developers
--- who develop event wires.
+-- | Only the first given number of occurrences.
+--
+-- * Depends: now.
 
-unsafeEvent :: a -> Event a
-unsafeEvent = Event
+takeE :: (Monad m, Monoid s) => Int -> Wire s e m (Event a) (Event a)
+takeE n | n <= 0 = pure never
+takeE n =
+    mkPure $ \_ ev ->
+        (Right ev, event (takeE n) (const (takeE $ pred n)) ev)

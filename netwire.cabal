@@ -44,6 +44,7 @@ library
         Control.Wire.FRP.Analyze
         Control.Wire.FRP.Core
         Control.Wire.FRP.Event
+        Control.Wire.FRP.Event.Unsafe
         Control.Wire.FRP.Move
         Control.Wire.FRP.Noise
         Control.Wire.FRP.Occasion
