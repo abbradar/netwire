@@ -53,27 +53,24 @@ infixr 1 -->
 --
 -- Use this switch, if you need to extend a wire over time.
 --
--- * Inhibits: when the current wire inhibits.  Inhibition of the
---   switcher wire is ignored.
+-- * Inhibits: when the current wire inhibits.  Inhibition of the second
+--   argument wire is ignored.
 --
--- * Switch: now, keep state.
+-- * Switch: now, restart state.
 
 kSwitch ::
     (Monad m, Monoid s)
     => Wire s e m a b
     -> Wire s e m (a, b) (Event (Wire s e m a b -> Wire s e m a b))
     -> Wire s e m a b
-kSwitch = loop mempty
-    where
-    loop s' (Wire f) (Wire g) =
-        Wire $ \ds mx' -> do
-            let s = s' <> ds
-            (mx, w1) <- f ds mx'
-            (mev, w2) <- g ds (liftA2 (,) mx' mx)
-            case (mx, mev) of
-              (Right _, Right (Event sw)) ->
-                  stepWire (loop s (sw w1) w2) mempty mx'
-              _ -> return (mx, loop s w1 w2)
+kSwitch (Wire f) (Wire g) =
+    Wire $ \ds mx' -> do
+        (mx,  w1) <- f ds mx'
+        (mev, w2) <- g ds (liftA2 (,) mx' mx)
+        case mev of
+          Right (Event sw) ->
+              stepWire (kSwitch (sw w1) w2) mempty mx'
+          _ -> return (mx, kSwitch w1 w2)
 
 
 -- | Extrinsic recurrent switch:  Start with the given wire.  Each time
@@ -85,11 +82,11 @@ rSwitch ::
     (Monad m, Monoid s)
     => Wire s e m a b
     -> Wire s e m (a, Event (Wire s e m a b)) b
-rSwitch w' =
-    mkWire $ \ds (x', ev) ->
-        case ev of
-          NoEvent  -> liftM (second rSwitch) (stepWire w' ds (Right x'))
-          Event w1 -> liftM (second rSwitch) (stepWire w1 ds (Right x'))
+rSwitch w'' =
+    Wire $ \ds mx' ->
+        let w' | Right (_, Event w1) <- mx' = w1
+               | otherwise = w''
+        in liftM (second rSwitch) (stepWire w' ds (fmap fst mx'))
 
 
 -- | Intrinsic one-time switch:  Start with the given wire.  As soon as
@@ -102,9 +99,9 @@ switch ::
     => Wire s e m a (b, Event (Wire s e m a b))
     -> Wire s e m a b
 switch w' =
-    mkWire $ \ds x' -> do
-        (mx, w) <- stepWire w' ds (Right x')
+    Wire $ \ds mx' -> do
+        (mx, w) <- stepWire w' ds mx'
         case mx of
-          Left _ -> return (fmap fst mx, switch w)
-          Right (x, NoEvent) -> return (Right x, switch w)
-          Right (_, Event w1) -> stepWire w1 mempty (Right x')
+          Left _              -> return (fmap fst mx, switch w)
+          Right (x, NoEvent)  -> return (Right x, switch w)
+          Right (_, Event w1) -> stepWire w1 mempty mx'
