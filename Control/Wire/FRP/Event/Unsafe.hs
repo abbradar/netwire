@@ -18,6 +18,10 @@ import Data.Typeable
 
 data Event a = Event a | NoEvent  deriving (Typeable)
 
+instance Functor Event where
+    fmap f (Event x) = Event $! f x
+    fmap f NoEvent   = NoEvent
+
 instance (Semigroup a) => Monoid (Event a) where
     mempty = NoEvent
 
