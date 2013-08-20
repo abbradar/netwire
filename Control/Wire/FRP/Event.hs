@@ -26,7 +26,7 @@ import Control.Wire.FRP.Event.Unsafe
 import Control.Wire.State
 import Control.Wire.Wire
 import Data.List
-import Data.Monoid
+import Data.Semigroup
 
 
 -- | Occurs at the given times.
@@ -34,7 +34,7 @@ import Data.Monoid
 -- * Depends: now when occurring.
 
 at ::
-    (HasTime t s, Monad m, Monoid a)
+    (HasTime t s, Monad m, Semigroup a)
     => [t] -> Wire s e m a (Event a)
 at = loop 0 . sort
     where
@@ -84,7 +84,7 @@ once =
 -- * Depends: now when occurring.
 
 periodically ::
-    (HasTime t s, Monad m, Monoid a)
+    (HasTime t s, Monad m, Semigroup a)
     => t
     -> Wire s e m a (Event a)
 periodically t = at (iterate (+ t) 0)

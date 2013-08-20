@@ -10,7 +10,7 @@ module Control.Wire.FRP.Event.Unsafe
     )
     where
 
-import Data.Monoid
+import Data.Semigroup
 import Data.Typeable
 
 
@@ -18,10 +18,16 @@ import Data.Typeable
 
 data Event a = Event a | NoEvent  deriving (Typeable)
 
-instance (Monoid a) => Monoid (Event a) where
+instance (Semigroup a) => Monoid (Event a) where
     mempty = NoEvent
 
     mappend (Event x) (Event y) = Event $! x <> y
     mappend (Event x) _         = Event x
     mappend _ (Event y)         = Event y
     mappend NoEvent NoEvent     = NoEvent
+
+instance (Semigroup a) => Semigroup (Event a) where
+    Event x <> Event y = Event $! x <> y
+    Event x <> _       = Event x
+    _ <> Event y       = Event y
+    NoEvent <> NoEvent = NoEvent
