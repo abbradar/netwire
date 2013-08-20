@@ -16,12 +16,12 @@ import Text.Printf
 
 
 wire :: WireP' a String
-wire = loop (cycle $ words "this is a test")
+wire = loop ""
     where
-    loop (txt:txts) =
-        switch $ proc _ -> do
-            swEv <- at [1] -< loop txts
-            id -< (txt, swEv)
+    loop w = kSwitch (liftA2 (++) (fmap show time) w) ev
+
+    ev =
+        arr (loop <$) . at [1] . pure ()
 
 
 main :: IO ()
