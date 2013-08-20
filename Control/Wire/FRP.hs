@@ -7,6 +7,7 @@
 module Control.Wire.FRP
     ( -- * FRP interface
       module Control.Wire.FRP.Analyze,
+      module Control.Wire.FRP.Combine,
       module Control.Wire.FRP.Core,
       module Control.Wire.FRP.Event,
       module Control.Wire.FRP.Move,
@@ -18,6 +19,7 @@ module Control.Wire.FRP
     where
 
 import Control.Wire.FRP.Analyze
+import Control.Wire.FRP.Combine
 import Control.Wire.FRP.Core
 import Control.Wire.FRP.Event
 import Control.Wire.FRP.Move

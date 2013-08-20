@@ -43,6 +43,7 @@ library
         Control.Wire
         Control.Wire.FRP
         Control.Wire.FRP.Analyze
+        Control.Wire.FRP.Combine
         Control.Wire.FRP.Core
         Control.Wire.FRP.Event
         Control.Wire.FRP.Event.Unsafe
