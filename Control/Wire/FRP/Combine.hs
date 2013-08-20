@@ -6,7 +6,8 @@
 
 module Control.Wire.FRP.Combine
     ( -- * Broadcast
-      broadcast
+      broadcast,
+      --bSwitch
     )
     where
 
@@ -15,17 +16,16 @@ import Control.Wire.Wire
 import Data.Traversable (Traversable)
 
 
--- | Broadcast to a collection of wires.
+-- | Broadcast to the given collection of wires.  If you want to inhibit
+-- when one of the component wires inhibits, use 'T.sequenceA'.
 --
 -- * Depends: like the strictest component wire.
 
 broadcast ::
     (Monad m, Traversable f)
-    => (e -> c)  -- ^ Inhibited signals.
-    -> (b -> c)  -- ^ Produced signals.
-    -> f (Wire s e m a b)  -- ^ Collection of wires.
-    -> Wire s e m a (f c)
-broadcast f g ws' =
+    => f (Wire s e m a b)  -- ^ Collection of wires.
+    -> Wire s e m a (f (Either e b))
+broadcast ws' =
     Wire $ \ds mx' -> do
         mxs <- T.mapM (\w' -> stepWire w' ds mx') ws'
-        return (Right $ fmap (either f g . fst) mxs, broadcast f g (fmap snd mxs))
+        return (Right (fmap fst mxs), broadcast (fmap snd mxs))
