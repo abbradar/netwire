@@ -62,7 +62,7 @@ infixr 1 -->
 -- * Switch: once, after now, restart state.
 
 dkSwitch ::
-    (Monad m, Monoid s)
+    (Monad m)
     => Wire s e m a b
     -> Wire s e m (a, b) (Event (Wire s e m a b -> Wire s e m a b))
     -> Wire s e m a b
@@ -82,7 +82,7 @@ dkSwitch (Wire f) (Wire g) =
 -- * Switch: recurrent, after now, restart state.
 
 drSwitch ::
-    (Monad m, Monoid s)
+    (Monad m)
     => Wire s e m a b
     -> Wire s e m (a, Event (Wire s e m a b)) b
 drSwitch w' =
@@ -99,7 +99,7 @@ drSwitch w' =
 -- * Switch: once, after now, restart state.
 
 dSwitch ::
-    (Monad m, Monoid s)
+    (Monad m)
     => Wire s e m a (b, Event (Wire s e m a b))
     -> Wire s e m a b
 dSwitch w' =
@@ -117,7 +117,7 @@ dSwitch w' =
 -- * Switch: recurrent, after now, restart state.
 
 dkrSwitch ::
-    (Monad m, Monoid s)
+    (Monad m)
     => Wire s e m a b
     -> Wire s e m (a, Event (Wire s e m a b -> Wire s e m a b)) b
 dkrSwitch w' =
@@ -160,7 +160,7 @@ kSwitch (Wire f) (Wire g) =
 -- * Switch: recurrent, now, restart state.
 
 krSwitch ::
-    (Monad m, Monoid s)
+    (Monad m)
     => Wire s e m a b
     -> Wire s e m (a, Event (Wire s e m a b -> Wire s e m a b)) b
 krSwitch w'' =
@@ -178,7 +178,7 @@ krSwitch w'' =
 -- * Switch: recurrent, now, restart state.
 
 rSwitch ::
-    (Monad m, Monoid s)
+    (Monad m)
     => Wire s e m a b
     -> Wire s e m (a, Event (Wire s e m a b)) b
 rSwitch w'' =
