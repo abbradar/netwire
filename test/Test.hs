@@ -8,17 +8,12 @@ module Main where
 
 import Control.Wire
 import Control.Wire.FRP
-import Data.Either
-import Data.Traversable (sequenceA)
 import Prelude hiding ((.), id)
-import Text.Printf
 
 
-wire :: WireP' a String
-wire =
-    unwords <$> sequenceA [fmap show time, "def"]
+wire :: (HasTime t s, Monad m) => Wire s () m a t
+wire = time
 
 
 main :: IO ()
-main =
-    testWire_ 0 clockSession_ wire
+main = testWire_ 0 clockSession_ wire
