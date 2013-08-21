@@ -44,8 +44,8 @@ This reactive value is the sum of two reactive values, each of which is
 just a constant, 15 and 17 respectively.  So this is the constant
 reactive value 32.  Let's spell out its type:
 
-    myWire :: (Monad m) => Wire s e m a b
-    myWire = liftA2 (+) (pure 15) (pure 17)
+> myWire :: (Monad m) => Wire s e m a b
+> myWire = liftA2 (+) (pure 15) (pure 17)
 
 This indicates that $m$ is some kind of underlying monad.  As an
 application developer you don't have to concern yourself much about it.
