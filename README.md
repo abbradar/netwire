@@ -2,8 +2,9 @@ Netwire
 =======
 
 Netwire is a functional reactive programming (FRP) library with signal
-inhibition.  It has three related concepts, the most important of which
-is the *wire*.  To work with wires we will need a few imports:
+inhibition.  It implements three related concepts, *wires*, *occasions*
+and *events*, the most important of which is the *wire*.  To work with
+wires we will need a few imports:
 
     import Control.Wire
     import Control.Wire.FRP
@@ -46,7 +47,6 @@ reactive value 32.  Let's spell out its type:
 
     myWire :: (Monad m) => Wire s e m a b
     myWire = liftA2 (+) (pure 15) (pure 17)
-
 
 This indicates that $m$ is some kind of underlying monad.  As an
 application developer you don't have to concern yourself much about it.
@@ -216,4 +216,65 @@ Remember our noisy clock?  Here is a more elegant version:
     in time + e
 
 If you have trouble wrapping your head around such an expression it may
-help to read `a*b + c` mathematically as $a(t) b(t) + c(t)$.
+help to read `a*b + c` mathematically as $a(t) b(t) + c(t)$ and read
+`time` as simply $t$.
+
+So far we have seen wires that ignore their input.  The following wire
+uses its input:
+
+    integral 5
+
+It literally integrates its input value with respect to time.  Its
+argument is the integration constant, i.e. the start value.  To supply
+an input simply compose it:
+
+    integral 5 . 3
+
+Remember that `3` really means `pure 3`, a constant wire.  The integral
+of the constant 3 is $3 t + c$ and here $c = 5$.  Here is another
+example:
+
+    integral 5 . time
+
+Since `time` denotes $t$ the integral will be $\frac{1}{2} t^2 + c$,
+again with $c = 5$.  This may sound like a complicated, sophisticated
+wire, but it's really not.  Surprisingly there is no crazy algebra or
+complicated numerical algorithm going on under the hood.  Integrating
+over time requires one addition and one division each frame.  So there
+is nothing wrong with using it extensively to animate your scene.
+
+Sometimes categorical composition and the applicative interface can be
+inconvenient, in which case you may choose to use the arrow interface.
+The above integration can be expressed the following way:
+
+    proc _ -> do
+        t <- time -< ()
+        integral 5 -< t
+
+
+Events
+------
+
+Events are things that happen at certain points in time.  As such they
+can be thought of as lists of values together with their occurrence
+times:
+
+    data Event a
+
+The predefined `never` event is the event that never occurs:
+
+    never :: Event a
+
+As suggested by the type events contain a value.  In order to protect
+continuous time semantics you cannot access this value directly.  We
+will need switching for that (covered in the next section).  Here is an
+event that occurs at program start:
+
+    now :: (Monad m, Monoid s) => Wire s e m a (Event a)
+
+The event's value is the wire's input value at that point in time, in
+this case at program start.  Example:
+
+    now . time
+
+This event's value will be 0, because time is zero at program start.

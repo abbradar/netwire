@@ -11,8 +11,8 @@ import Control.Wire.FRP
 import Prelude hiding ((.), id)
 
 
-wire :: (HasTime t s, Monad m) => Wire s () m a t
-wire = time
+wire :: (Fractional t, HasTime t s, Monad m) => Wire s () m a t
+wire = integral 5 . time - (5 + (time*time)/2)
 
 
 main :: IO ()
