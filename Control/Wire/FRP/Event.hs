@@ -10,6 +10,7 @@ module Control.Wire.FRP.Event
 
       -- * Constructing events
       at,
+      atList,
       never,
       now,
       periodically,
@@ -29,14 +30,27 @@ import Data.List
 import Data.Semigroup
 
 
+-- | Occurs once at the given time.
+--
+-- * Depends: now when occurring.
+
+at :: (HasTime t s, Monad m) => t -> Wire s e m a (Event a)
+at t' =
+    mkPure $ \ds x ->
+        let t  = t' - dtime ds
+        in if t <= 0
+             then (Right (Event $! x), pure never)
+             else (Right NoEvent, at t)
+
+
 -- | Occurs at the given times.
 --
 -- * Depends: now when occurring.
 
-at ::
+atList ::
     (HasTime t s, Monad m, Semigroup a)
     => [t] -> Wire s e m a (Event a)
-at = loop 0 . sort
+atList = loop 0 . sort
     where
     loop t' ets' =
         mkPure $ \ds x ->
@@ -87,7 +101,7 @@ periodically ::
     (HasTime t s, Monad m, Semigroup a)
     => t
     -> Wire s e m a (Event a)
-periodically t = at (iterate (+ t) 0)
+periodically t = atList (iterate (+ t) 0)
 
 
 -- | Only the first given number of occurrences.

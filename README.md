@@ -251,6 +251,10 @@ The above integration can be expressed the following way:
         t <- time -< ()
         integral 5 -< t
 
+Since `time` ignores its input signal, we just give it a constant signal
+with value `()`.  We name time's value $t$ and pass it as the input
+signal to `integral`.
+
 
 Events
 ------
@@ -278,3 +282,81 @@ this case at program start.  Example:
     now . time
 
 This event's value will be 0, because time is zero at program start.
+There are many wires for constructing events, but ultimately a framework
+will provide the events you need.  For example a UI framework built on
+Netwire will provide events for button clicks.  A game engine will
+provide keyboard, mouse and joystick events.
+
+
+Switching
+---------
+
+The main purpose of events is to switch.  Let's start with a very simple
+example:  We have a wire that has the value "no":
+
+    pure "no"
+
+With the *OverloadedStrings* extension we can simply say:
+
+    "no"
+
+Now we want to make it switch to "yes" after three seconds.  First we
+need an event that occurs at $t = 3$:
+
+    at ::
+        (HasTime t s, Monad m)
+        => t
+        -> Wire s e m a (Event a)
+
+The `at 3` event occurs at $t = 3$.  For the actual switching we can use
+the `switch` combinator:
+
+    switch ::
+        (Monad m, Monoid s)
+        => Wire s e m a (b, Event (Wire s e m a b))
+        -> Wire s e m a b
+
+This wire acts like its argument wire until its event occurs, at which
+point it switches to the wire contained in the event.  Now let's put all
+of this together:
+
+    no  = pure "no"
+    yes = pure "yes"
+
+These are constant wires and we want to switch from `no` to `yes` after
+three seconds.  We need a switching event for that:
+
+    switcher = at 3 . pure yes
+
+This wire produces an event at $t = 3$.  The event's value will be `yes`
+(the wire, not the string).  Finally let's put everything together:
+
+    wire :: (HasTime t s, Monad m) => Wire s () m a String
+    wire = switch (liftA2 (,) no switcher)
+
+Such a switch may be easier to understand in arrow notation:
+
+    wire =
+        switch $ proc _ -> do
+            ev <- at 3 -< pure "yes"
+            id -< ("no", ev)
+
+There are many kinds of switches.  Visit the Haddock documentations of
+`Control.Wire.FRP.Switch` and `Control.Wire.FRP.Combine`.
+
+
+Signal inhibition
+-----------------
+
+The final concept to learn is the concept of *signal inhibition* and
+*occasions*.  As noted earlier Netwire allows signal inhibition, which
+means that wires may choose not to have a value at all in certain time
+intervals.  The difference between events and signal inhibition is that
+events are discrete and instantaneous, while signal inhibition is
+continuous.
+
+Inhibiting wires are usually constructed from *occasions* which you may
+think of as continuous events.  These are events which stretch over a
+time period with non-zero length:
+
+    type Occasion s e m a = Wire s e m a a
