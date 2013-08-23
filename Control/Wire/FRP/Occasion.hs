@@ -14,7 +14,10 @@ module Control.Wire.FRP.Occasion
       unless,
       until,
       when,
-      while
+      while,
+
+      -- * Utilities
+      inhibit
     )
     where
 
@@ -80,6 +83,14 @@ for t' =
         if t <= 0
           then (Left mempty, empty)
           else (Right x, for t)
+
+
+-- | Inhibit with the given value.
+--
+-- * Inhibits: always.
+
+inhibit :: (Monad m, Monoid s) => e -> Wire s e m a b
+inhibit ex = mkPure_ $ \_ _ -> Left ex
 
 
 -- | When the input does not satisfy the given predicate.
