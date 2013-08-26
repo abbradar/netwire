@@ -13,14 +13,33 @@ module Control.Wire.FRP.Core
       -- * Unfold
       iterateW,
       list,
-      unfold
+      unfold,
+
+      -- * Forcing
+      nf,
+      whnf
     )
     where
 
 import Control.Applicative
+import Control.DeepSeq
 import Control.Wire.State
 import Control.Wire.Wire
 import Data.Monoid
+
+
+-- | Iterate from the given start value using the given step function.
+-- Step each given number of time units.  May skip values depending on
+-- the granularity of your clock resp. your framerate.
+
+iterateW ::
+    (HasTime t s, Monad m)
+    => t         -- ^ Positive time interval before next value.
+    -> (b -> b)  -- ^ Step size.
+    -> b         -- ^ Start value.
+    -> Wire s e m a b
+iterateW int _ | int <= 0 = error "iterateW: Non-positive time interval"
+iterateW int f = unfold int ((\x -> (x, x)) . f)
 
 
 -- | Produce a staircase of the values in the given list.  For each @(x,
@@ -47,18 +66,12 @@ list xs' =
         | otherwise = next (ds - t) xs
 
 
--- | Iterate from the given start value using the given step function.
--- Step each given number of time units.  May skip values depending on
--- the granularity of your clock resp. your framerate.
+-- | Force the signal into normal form.
+--
+-- * Depends: now.
 
-iterateW ::
-    (HasTime t s, Monad m)
-    => t         -- ^ Positive time interval before next value.
-    -> (b -> b)  -- ^ Step size.
-    -> b         -- ^ Start value.
-    -> Wire s e m a b
-iterateW int _ | int <= 0 = error "iterateW: Non-positive time interval"
-iterateW int f = unfold int ((\x -> (x, x)) . f)
+nf :: (Monad m, Monoid s, NFData a) => Wire s e m a a
+nf = mkPure_ $ \_ x -> x `deepseq` Right x
 
 
 -- | Current local time starting from zero.
@@ -103,3 +116,13 @@ unfold int gen = uncurry (loop int) . gen
         | otherwise =
             let (x, g) = gen g' in
             next (dt - t) int x g
+
+
+-- | Force the signal into weak head normal form.  Wires are expected to
+-- ensure WHNF signals on their own, so you shouldn't normally need
+-- this.
+--
+-- * Depends: now.
+
+whnf :: (Monad m, Monoid s) => Wire s e m a a
+whnf = mkPure_ $ \_ x -> x `seq` Right x
