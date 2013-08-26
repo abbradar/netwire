@@ -52,15 +52,15 @@ at t' =
 atList ::
     (HasTime t s, Monad m, Semigroup a)
     => [t] -> Wire s e m a (Event a)
-atList = loop 0 . sort
+atList = loop 0
     where
     loop t' ets' =
         mkPure $ \ds x ->
             let t = t' + dtime ds
-                (ev, ets) = first (foldl' (<>) mempty .
-                                   ((Event $! x) <$))
-                                  (span (<= t) ets')
-            in (Right ev, loop t ets)
+                (ev, ets) =
+                    first (foldl' (<>) mempty . (Event x <$))
+                          (span (<= t) ets')
+            in ev `seq` (Right ev, loop t ets)
 
 
 -- | Fold the event.
