@@ -11,11 +11,8 @@ import Control.Wire.FRP
 import Prelude hiding ((.), id)
 
 
-wire :: (HasTime t s, Monad m) => Wire s () m a String
-wire =
-    switch $ proc _ -> do
-        ev <- at 3 -< pure "yes"
-        id -< ("no", ev)
+wire :: (Enum t, Fractional t, HasTime t s, Monad m, Show t) => Wire s () m a String
+wire = hold "x" . nf . atList [1..] . nf . fmap show time
 
 
 main :: IO ()

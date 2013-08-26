@@ -148,9 +148,9 @@ instance (Monad m) => Category (Wire s e m) where
 
     Wire f . Wire g =
         Wire $ \ds mx -> do
-            (my, w1) <- g ds mx
-            (mz, w2) <- f ds my
-            return (mz, w2 . w1)
+            (my, w1) <- sigForce mx `seq` g ds mx
+            (mz, w2) <- sigForce my `seq` f ds my
+            sigForce mz `seq` return (mz, w2 . w1)
 
 instance (Monad m, Floating b) => Floating (Wire s e m a b) where
     (**) = liftA2 (**)
@@ -179,7 +179,10 @@ instance (Monad m, Fractional b) => Fractional (Wire s e m a b) where
 
 instance (Monad m) => Functor (Wire s e m a) where
     fmap f (Wire g) =
-        Wire $ \ds -> liftM (fmap f *** fmap f) . g ds
+        Wire $ \ds mx' -> do
+            (mx, w) <- g ds mx'
+            let my = fmap f mx
+            sigForce my `seq` return (my, fmap f w)
 
 instance (Monad m, IsString b) => IsString (Wire s e m a b) where
     fromString = pure . fromString
@@ -267,3 +270,10 @@ mkWire_ ::
     => (s -> a -> m (Either e b))
     -> Wire s e m a b
 mkWire_ f = let w = mkWire (\ds -> liftM (, w) . f ds) in w
+
+
+-- | Force the given signal into WHNF.
+
+sigForce :: Either e a -> ()
+sigForce (Right x) = x `seq` ()
+sigForce (Left ex) = ex `seq` ()
