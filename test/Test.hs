@@ -7,12 +7,11 @@
 module Main where
 
 import Control.Wire
-import Control.Wire.FRP
 import Prelude hiding ((.), id)
 
 
-wire :: (Enum t, Fractional t, HasTime t s, Monad m, Show t) => Wire s () m a String
-wire = hold "x" . nf . atList [1..] . nf . fmap show time
+wire :: (Monad m, Monoid s) => Wire s () m a String
+wire = pure "x"
 
 
 main :: IO ()

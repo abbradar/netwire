@@ -42,21 +42,8 @@ library
     ghc-options: -W
     exposed-modules:
         Control.Wire
-        Control.Wire.FRP
-        Control.Wire.FRP.Analyze
-        Control.Wire.FRP.Combine
-        Control.Wire.FRP.Core
-        Control.Wire.FRP.Event
-        Control.Wire.FRP.Event.Unsafe
-        Control.Wire.FRP.Move
-        Control.Wire.FRP.Noise
-        Control.Wire.FRP.Occasion
-        Control.Wire.FRP.Switch
-        Control.Wire.FRP.Types
-        Control.Wire.Semantics
         Control.Wire.Session
         Control.Wire.State
-        Control.Wire.Timeline
         Control.Wire.Wire
 
 executable netwire-test
