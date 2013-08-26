@@ -16,6 +16,8 @@ module Control.Wire.FRP.Event
       periodically,
 
       -- * Manipulating events
+      hold,
+      hold_,
       once,
       takeE
     )
@@ -66,6 +68,35 @@ atList = loop 0 . sort
 event :: b -> (a -> b) -> Event a -> b
 event _ e (Event x) = e x
 event n _ NoEvent   = n
+
+
+-- | Hold the input event's value starting with the given value.
+-- Changes each time the event occurs.
+--
+-- * Depends: now.
+
+hold :: (Monad m, Monoid s) => a -> Wire s e m (Event a) a
+hold x' =
+    mkPure $ \_ ev ->
+        let x | Event x1 <- ev = x1
+              | otherwise = x'
+        in x `seq` (Right x, hold x)
+
+
+-- | Hold the input event's value.  Changes each time the event occurs.
+--
+-- * Depends: now.
+--
+-- * Inhibits: before the first event.
+
+hold_ :: (Monad m, Monoid e, Monoid s) => Wire s e m (Event a) a
+hold_ = loop (Left mempty)
+    where
+    loop x' =
+        mkPure $ \_ ev ->
+            let x | Event x1 <- ev = Right x1
+                  | otherwise = x'
+            in (x, loop x)
 
 
 -- | Never occurs.
