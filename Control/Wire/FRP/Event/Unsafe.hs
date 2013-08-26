@@ -10,28 +10,29 @@ module Control.Wire.FRP.Event.Unsafe
     )
     where
 
+import Control.DeepSeq
 import Data.Semigroup
 import Data.Typeable
 
 
 -- | Denotes a stream of values, each together with time of occurrence.
 
-data Event a = Event a | NoEvent  deriving (Typeable)
+data Event a = Event !a | NoEvent  deriving (Typeable)
 
 instance Functor Event where
-    fmap f (Event x) = Event $! f x
-    fmap f NoEvent   = NoEvent
+    fmap f (Event x) = Event (f x)
+    fmap _ NoEvent   = NoEvent
 
 instance (Semigroup a) => Monoid (Event a) where
     mempty = NoEvent
+    mappend = (<>)
 
-    mappend (Event x) (Event y) = Event $! x <> y
-    mappend (Event x) _         = Event x
-    mappend _ (Event y)         = Event y
-    mappend NoEvent NoEvent     = NoEvent
+instance (NFData a) => NFData (Event a) where
+    rnf (Event x) = rnf x
+    rnf NoEvent   = ()
 
 instance (Semigroup a) => Semigroup (Event a) where
-    Event x <> Event y = Event $! x <> y
+    Event x <> Event y = Event (x <> y)
     Event x <> _       = Event x
     _ <> Event y       = Event y
     NoEvent <> NoEvent = NoEvent
