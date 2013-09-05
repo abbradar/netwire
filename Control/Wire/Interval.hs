@@ -17,6 +17,7 @@ module Control.Wire.Interval
       when,
 
       -- * Event-based intervals
+      asSoonAs,
       hold,
       holdFor,
       until
@@ -44,6 +45,12 @@ after t' =
         if t <= 0
           then (Right x, mkId)
           else (Left mempty, after t)
+
+
+-- | Alias for 'hold'.
+
+asSoonAs :: (Monoid e) => Wire s e m (Event a) a
+asSoonAs = hold
 
 
 -- | For the given time period.
