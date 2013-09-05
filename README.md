@@ -238,110 +238,195 @@ with value `()`.  We name time's value $t$ and pass it as the input
 signal to `integral`.
 
 
+Intervals
+---------
+
+Wires may choose to produce a signal only for a limited amount of time.
+We refer to those wires as intervals.  When a wire does not produce,
+then it *inhibits*.  Example:
+
+    for 3
+
+This wire acts like the identity wire in that it passes its input signal
+through unchanged:
+
+    for 3 . "yes"
+
+The signal of this wire will be "yes", but after three seconds it will
+stop to act like the identity wire and will inhibit forever.
+
+When you use `testWire` inhibition will be displayed as "I:" followed by
+a value, the *inhibition value*.  This is what the $e$ parameter to
+`Wire` is.  It's called the *inhibition monoid*:
+
+    for :: (HasTime t s, Monoid e) => t -> Wire s e m a a
+
+As you can see the input and output types are the same and fully
+polymorphic, hinting at the identity-like behavior.  All predefined
+intervals inhibit with the `mempty` value.  When the wire inhibits, you
+don't get a signal of type $a$, but rather an inhibition value of type
+$e$.  Netwire does not interpret this value in any way and in most cases
+you would simply use `e = ()`.
+
+Intervals give you a very elegant way to combine wires:
+
+    for 3 . "yes" <|> "no"
+
+This wire produces "yes" for three seconds.  Then the wire to the left
+of `<|>` will stop producing, so `<|>` will use the wire to its right
+instead.  You can read the operator as a left-biased "or".  The signal
+of the wire `w1 <|> w2` will be the signal of the leftmost component
+wire that actually produced a signal.  There are a number of predefined
+interval wires.  The above signal can be written equivalently as:
+
+    after 3 . "no" <|> "yes"
+
+The left wire will inhibit for the first three seconds, so during that
+interval the right wire is chosen.  After that, as suggested by its
+name, the `after` wire starts acting like the identity wire, so the left
+side takes precedence.  Once the time period has passed the `after` wire
+will produce forever, leaving the "yes" wire never to be reached again.
+However, you can easily combine intervals:
+
+    after 5 . for 6 . "Blip!" <|> "Look at me..."
+
+The left wire will produce after five seconds from the beginning for six
+seconds from the beginning, so effectively it will produce for one
+second.  When you animate this wire, you will see the string "Look at
+me..." for five seconds, then you will see "Blip!" for one second, then
+finally it will go back to "Look at me..." and display that one forever.
+
+
 Events
 ------
 
-Events are things that happen at certain points in time.  As such they
-can be thought of as lists of values together with their occurrence
-times:
+Events are things that happen at certain points in time.  Examples
+include button presses, network packets or even just reaching a certain
+point in time.  As such they can be thought of as lists of values
+together with their occurrence times.  Events are actually first class
+signals of the `Event` type:
 
     data Event a
 
-The predefined `never` event is the event that never occurs:
+For example the predefined `never` event is the event that never occurs:
 
-    never :: Event a
+    never :: Wire s e m a (Event b)
 
 As suggested by the type events contain a value.  Netwire exports the
-constructors of the `Event` type, but `netwire-frp` doesn't.  This is
+constructors of the `Event` type to enable framework developers to
+implement their own events.  A game engine may include events for key
+presses or certain things happening in the scene.  However, as an
+application developer you should view this type as being opaque.  In
+fact `netwire-frp` does not export the constructors of `Event`.  This is
 necessary in order to protect continuous time semantics.  You cannot
 access event values directly.
 
-We will need switching for that (covered in the next section).  Here is
-an event that occurs right at the beginning:
+There are a number of ways to respond to an event.  The primary way to
+do this in Netwire is to turn events into intervals.  There are a number
+of predefined wires for that purpose, for example `asSoonAs`:
+
+    asSoonAs :: (Monoid e) => Wire s e m (Event a) a
+
+This wire takes an event signal as its input.  Initially it inhibits,
+but as soon as the event occurs for the first time, it produces the
+event's last value forever.  The `at` event will occur only once after
+the given time period has passed:
+
+    at :: (HasTime t s) => t -> Wire s e m a (Event a)
+
+Example:
+
+    at 3 . "blubb"
+
+This event will occur after three seconds, and the event's value will be
+"blubb".  Using `asSoonAs` we can turn this into an interval:
+
+    asSoonAs . at 3 . "blubb"
+
+This wire will inhibit for three seconds and then start producing.  It
+will produce the value "blubb" forever.  That's the event's last value
+after three seconds, and it will never change, because the event does
+not occur ever again.  Here is an example that may be more
+representative of that property:
+
+    asSoonAs . at 3 . time
+
+This wire inhibits for three seconds, then it produces the value 3 (or a
+value close to it) forever.  Notice that this is not a clock.  It does
+not produce the current time, but the `time` at the point in time when
+the event occurred.
+
+To combine multiple events there are a number of options.  In principle
+you should think of event values to form a semigroup (of your choice),
+because events can occur simultaneously.  However, in many cases the
+actual value of the event is not that interesting, so there is an easy
+way to get a left- or right-biased combination:
+
+    (at 2 <& at 3) . time
+
+This event occurs two times, namely once after two seconds and once
+after three seconds.  In each case the event value will be the
+occurrence time.  Here is an interesting case:
+
+    at 2 . "blah" <& at 2 . "blubb"
+
+These events will occur simultaneously.  The value will be "blah",
+because `<&` means left-biased combination.  There is also `&>` for
+right-biased combination.  If event values actually form a semigroup,
+then you can just use monoidal composition:
+
+    at 2 . "blah" <> at 2 . "blubb"
+
+Again these events occur at the same time, but this time the event value
+will be "blahblubb".  Note that you are using two Monoid instances and
+one Semigroup instance here.  If the signals of two wires form a monoid,
+then wires themselves form a monoid:
+
+    w1 <> w2 = liftA2 (<>) w1 w2
+
+There are many predefined event-wires and many combinators for
+manipulating events in the `Control.Wire.Event` module.  One of the most
+common events is the `now` event:
 
     now :: Wire s e m a (Event a)
 
-The event's value is the wire's input value at that point in time, in
-this case at the beginning.  Example:
-
-    now . time
-
-This event's value will be 0, because time is zero at the beginning.
-There are many wires for constructing events, but ultimately a framework
-will provide the events you need.  For example a UI framework built on
-Netwire will provide events for button clicks.  A game engine will
-provide keyboard, mouse and joystick events.
+This event occurs once at the beginning.
 
 
 Switching
 ---------
 
-The main purpose of events is to switch.  Let's start with a very simple
-example:  We have a wire that has the value "no":
+We still lack a meaningful way to respond to events.  This is where
+*switching* comes in, sometimes also called *dynamic switching*.  The
+most important combinator for switching is `-->`:
 
-    pure "no"
+    w1 --> w2
 
-With the *OverloadedStrings* extension we can simply say:
+The idea is really straightforward:  This wire acts like `w1` as long as
+it produces.  As soon as it stops producing it is discarded and `w2`
+takes its place.  Example:
 
-    "no"
+    for 3 . "yes" --> "no"
 
-Now we want to make it switch to "yes" after three seconds.  First we
-need an event that occurs at $t = 3$:
+In this case the behavior will be the same as in the *intervals*
+section, but with two major differences:  Firstly when the first
+interval ends, it is completely discarded and garbage-collected, never
+to be seen again.  Secondly and more importantly the point in time of
+switching will be the beginning for the new wire.  Example:
 
-    at ::
-        (HasTime t s, Monad m)
-        => t
-        -> Wire s e m a (Event a)
+    for 3 . time --> time
 
-The `at 3` event occurs at $t = 3$.  For the actual switching we can use
-the `switch` combinator:
+This wire will show a clock counting to three seconds, then it will
+start over from zero.  This is why we usually refer to time as *local
+time*.
 
-    switch ::
-        (Monad m, Monoid s)
-        => Wire s e m a (b, Event (Wire s e m a b))
-        -> Wire s e m a b
+Recursion is fully supported.  Here is a fun example:
 
-This wire acts like its argument wire until its event occurs, at which
-point it switches to the wire contained in the event.  Now let's put all
-of this together:
-
-    no  = pure "no"
-    yes = pure "yes"
-
-These are constant wires and we want to switch from `no` to `yes` after
-three seconds.  We need a switching event for that:
-
-    switcher = at 3 . pure yes
-
-This wire produces an event at $t = 3$.  The event's value will be `yes`
-(the wire, not the string).  Finally let's put everything together:
-
-    wire :: (HasTime t s, Monad m) => Wire s () m a String
-    wire = switch (liftA2 (,) no switcher)
-
-Such a switch may be easier to understand in arrow notation:
-
-    wire =
-        switch $ proc _ -> do
-            ev <- at 3 -< pure "yes"
-            id -< ("no", ev)
-
-There are many kinds of switches.  Visit the Haddock documentations of
-`Control.Wire.FRP.Switch` and `Control.Wire.FRP.Combine`.
-
-
-Signal inhibition
------------------
-
-The final concept to learn is the concept of *signal inhibition* and
-*occasions*.  As noted earlier Netwire allows signal inhibition, which
-means that wires may choose not to have a value at all in certain time
-intervals.  The difference between events and signal inhibition is that
-events are discrete and instantaneous, while signal inhibition is
-continuous.
-
-Inhibiting wires are usually constructed from *occasions* which you may
-think of as continuous events.  These are events which stretch over a
-time period with non-zero length:
-
-    type Occasion s e m a = Wire s e m a a
+    netwireIsCool =
+        for 2 . "Once upon a time..." -->
+        for 3 . "... games were completely imperative..." -->
+        for 2 . "... but then..." -->
+        for 10 . ("Netwire 5! " <>
+                  (holdFor 0.5 . (now <& periodic 1) . "Hoo..." <|>
+                   "...ray!")) -->
+        netwireIsCool
