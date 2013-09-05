@@ -2,12 +2,11 @@ Netwire
 =======
 
 Netwire is a functional reactive programming (FRP) library with signal
-inhibition.  It implements three related concepts, *wires*, *occasions*
+inhibition.  It implements three related concepts, *wires*, *intervals*
 and *events*, the most important of which is the *wire*.  To work with
 wires we will need a few imports:
 
     import Control.Wire
-    import Control.Wire.FRP
     import Prelude hiding ((.), id)
 
 The `Control.Wire` module exports the basic types and helper functions.
@@ -16,9 +15,15 @@ when working with wires, including `Control.Category`.  This is why we
 need the explicit `Prelude` import.
 
 In general wires are generalized automaton arrows, so you can express
-many design patterns using them.  The `Control.Wire.FRP` module provides
-a proper FRP framework based on them, which strictly respects continuous
+many design patterns using them.  The `netwire-frp` package provides a
+proper FRP framework based on them, which strictly respects continuous
 time and discrete event semantics.
+
+
+Introduction
+------------
+
+The following type is central to the entire library:
 
     newtype Wire s e m a b
 
@@ -28,8 +33,10 @@ very simple meanings, which will be explained below.
 A value of this type is called a *wire* and represents a *reactive*
 value of type $b$, that is a value that may change over time.  It may
 depend on a reactive value of type $a$.  In a sense a wire is a function
-from a reactive value of type $a$ to a reactive value of type $b$.  In
-FRP terminology a reactive value is called a *behavior*.
+from a reactive value of type $a$ to a reactive value of type $b$, so
+whenever you see something of type `Wire s e m a b` your mind should
+draw an arrow from $a$ to $b$.  In FRP terminology a reactive value is
+called a *behavior*.
 
 A constant reactive value can be constructed using `pure`:
 
@@ -45,7 +52,7 @@ This reactive value is the sum of two reactive values, each of which is
 just a constant, 15 and 17 respectively.  So this is the constant
 reactive value 32.  Let's spell out its type:
 
-    myWire :: (Monad m) => Wire s e m a b
+    myWire :: (Monad m, Num b) => Wire s e m a b
     myWire = liftA2 (+) (pure 15) (pure 17)
 
 This indicates that $m$ is some kind of underlying monad.  As an
@@ -57,7 +64,7 @@ through a writer monad.
 The wires we have seen so far are rather boring.  Let's look at a more
 interesting one:
 
-    time :: (HasTime t s, Monad m) => Wire s e m a t
+    time :: (HasTime t s) => Wire s e m a t
 
 This wire represents the current local time, which starts at zero when
 execution begins.  It does not make any assumptions about the time type
@@ -85,30 +92,16 @@ other floating point type.  There is a predefined wire for this:
     timeF :: (Fractional b, HasTime t s, Monad m) => Wire s e m a b
     timeF = fmap realToFrac time
 
-Another group of interesting wires is the noise wires:
-
-    stdNoiseR ::
-        (HasTime t s, Monad m, Random b)
-        => t
-        -> (b, b)
-        -> Int
-        -> Wire s e m a b
-
-This wire produces white noise.  Its first argument is the inverse
-sample rate with the value 0.1 meaning that the sample changes ten times
-each second.  The second argument is the range from which to pick each
-sample.  The third argument is the seed.  The inverse sample rate
-doesn't have to do with performance.  It is only necessary for semantic
-reasons.
-
 If you think of reactive values as graphs with the horizontal axis
 representing time, then the `time` wire is just a straight diagonal line
-and `stdNoiseR` is a noise graph.  You can use the applicative interface
-to add them:
+and constant wires (constructed by `pure`) are just horizontal lines.
+You can use the applicative interface to perform arithmetic on them:
 
-    liftA2 (+) time (stdNoise 0.001 (-0.1, 0.1) 12345)
+    liftA2 (\t c -> c - 2*t) time (pure 60)
 
-This gives you a noisy clock.
+This gives you a countdown clock that starts at 60 and runs twice as
+fast as the regular clock.  So it after two seconds its value will be
+56, decreasing by 2 each second.
 
 
 Testing wires
@@ -118,24 +111,22 @@ Enough theory, we wanna see some performance now!  Let's write a simple
 program to test a constant (`pure`) wire:
 
     import Control.Wire
-    import Control.Wire.FRP
     import Prelude hiding ((.), id)
 
     wire :: (Monad m) => Wire s () m a Integer
     wire = pure 15
 
     main :: IO ()
-    main = testWire_ 0 (pure ()) wire
+    main = testWire (pure ()) wire
 
 This should just display the value 15.  Abort the program by pressing
-Ctrl-C.  The `testWire_` function is a convenience to examine wires.  It
+Ctrl-C.  The `testWire` function is a convenience to examine wires.  It
 just executes the wire and continuously prints its value to stdout:
 
-    testWire_ ::
+    testWire ::
         (MonadIO m, Show b, Show e)
-        => Int
-        -> Session m s
-        -> (forall a m. (Monad m) => Wire s e m a b)
+        => Session m s
+        -> (forall a. Wire s e Identity a b)
         -> m c
 
 The type signatures in Netwire are known to be scary. =) But like most
@@ -145,35 +136,30 @@ increasing its local time slightly.  This process is traditionally
 called *stepping*.
 
 As an FRP developer you assume a continuous time model, so you don't
-observe this stepping process, but it can be useful to know that wire
-execution is actually a discrete process.
+observe this stepping process from the point of view of your reactive
+application, but it can be useful to know that wire execution is
+actually a discrete process.
 
-The first argument determines how often to show its value.  Zero means
-that it is shown as often as possible, i.e. after each step.  A value of
-1000 means that it is only shown at each 1000th step.  In general just
-use zero.
+The first argument of `testWire` needs some explanation.  It is a recipe
+for state deltas.  In the above example we have just used `pure ()`,
+meaning that we don't use anything stateful from the outside world,
+particularly we don't use a clock.  From the type signature it is also
+clear that this sets `s = ()`.
 
-The second argument is a lot more interesting.  It is a recipe for state
-deltas.  In the above example we have just used `pure ()`, meaning that
-we don't use anything stateful from the outside world, particularly we
-don't use a clock.
-
-The third argument is the wire to run.  The input type is quantified
+The second argument is the wire to run.  The input type is quantified
 meaning that it needs to be polymorphic in its input type.  In other
 words it means that the wire does not depend on any other reactive
-value.  The underlying monad is also quantified basically meaning that
-the wire must not have any monadic effects.  For example you will notice
-that trying to run a wire with $m = \mathrm{IO}$ will result in a type
-error.
+value.  The underlying monad is `Identity` with the obvious meaning that
+this wire cannot have any monadic effects.
 
 The following application just displays the number of seconds passed
-since program start:
+since program start (with some subsecond precision):
 
-    wire :: (HasTime t s, Monad m) => Wire s () m a t
+    wire :: (HasTime t s) => Wire s () m a t
     wire = time
 
     main :: IO ()
-    main = testWire_ 0 clockSession_ wire
+    main = testWire clockSession_ wire
 
 Since this time the wire actually needs a clock we use `clockSession_`
 as the second argument:
@@ -210,17 +196,12 @@ fast:
 
     2*time + 17
 
-Remember our noisy clock?  Here is a more elegant version:
-
-    let e = stdNoise 0.001 (-0.1, 0.1) 12345
-    in time + e
-
 If you have trouble wrapping your head around such an expression it may
 help to read `a*b + c` mathematically as $a(t) b(t) + c(t)$ and read
 `time` as simply $t$.
 
-So far we have seen wires that ignore their input.  The following wire
-uses its input:
+So far we have seen wires that ignore their input.  The following wire,
+found in the `netwire-frp` package, uses its input:
 
     integral 5
 
@@ -241,7 +222,8 @@ again with $c = 5$.  This may sound like a complicated, sophisticated
 wire, but it's really not.  Surprisingly there is no crazy algebra or
 complicated numerical algorithm going on under the hood.  Integrating
 over time requires one addition and one division each frame.  So there
-is nothing wrong with using it extensively to animate your scene.
+is nothing wrong with using it extensively to animate a scene or to move
+objects in a game.
 
 Sometimes categorical composition and the applicative interface can be
 inconvenient, in which case you may choose to use the arrow interface.
@@ -269,19 +251,22 @@ The predefined `never` event is the event that never occurs:
 
     never :: Event a
 
-As suggested by the type events contain a value.  In order to protect
-continuous time semantics you cannot access this value directly.  We
-will need switching for that (covered in the next section).  Here is an
-event that occurs at program start:
+As suggested by the type events contain a value.  Netwire exports the
+constructors of the `Event` type, but `netwire-frp` doesn't.  This is
+necessary in order to protect continuous time semantics.  You cannot
+access event values directly.
 
-    now :: (Monad m, Monoid s) => Wire s e m a (Event a)
+We will need switching for that (covered in the next section).  Here is
+an event that occurs right at the beginning:
+
+    now :: Wire s e m a (Event a)
 
 The event's value is the wire's input value at that point in time, in
-this case at program start.  Example:
+this case at the beginning.  Example:
 
     now . time
 
-This event's value will be 0, because time is zero at program start.
+This event's value will be 0, because time is zero at the beginning.
 There are many wires for constructing events, but ultimately a framework
 will provide the events you need.  For example a UI framework built on
 Netwire will provide events for button clicks.  A game engine will

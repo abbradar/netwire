@@ -5,128 +5,107 @@
 -- Maintainer: Ertugrul Soeylemez <es@ertes.de>
 
 module Control.Wire.Session
-    ( -- * Run wire sessions
-      reactimate,
-      reactimateM,
+    ( -- * State delta types
+      HasTime(..),
+      Session(..),
 
-      -- * Test wires
-      testWire,
-      testWire_,
-      testWireM,
-      testWireM_
+      -- ** Wires with time
+      Timed(..),
+      clockSession,
+      clockSession_,
+      countSession,
+      countSession_
     )
     where
 
+import Control.Applicative
 import Control.Monad.IO.Class
-import Control.Wire.State
-import Control.Wire.Wire
 import Data.Data
-import Data.Functor.Identity
-import System.IO
+import Data.Foldable (Foldable)
+import Data.Monoid
+import Data.Time.Clock
+import Data.Traversable (Traversable)
 
 
--- | Quit after this iteration?
+-- | State delta types with time deltas.
 
-data Quit = Quit | NoQuit
-    deriving (Data, Eq, Ord, Read, Show, Typeable)
-
-
--- | Run the given wire session.
-
-reactimate ::
-    (Monad m)
-    => m a                -- ^ Input generator.
-    -> (Either e b -> m Quit)  -- ^ Process output.
-    -> Session m s        -- ^ State delta generator.
-    -> WireP s e a b      -- ^ Wire to run.
-    -> m ()
-reactimate getInput process s0 w0 =
-    reactimateM getInput process (return . runIdentity) s0 w0
+class (Monoid s, Real t) => HasTime t s | s -> t where
+    -- | Extract the current time delta.
+    dtime :: s -> t
 
 
--- | Like 'reactimate', but for effectful wires.
+-- | State delta generators as required for wire sessions, most notably
+-- to generate time deltas.  These are mini-wires with the sole purpose
+-- of generating these deltas.
 
-reactimateM ::
-    (Monad m, Monad m')
-    => m a                 -- ^ Input generator.
-    -> (Either e b -> m Quit)   -- ^ Process output.
-    -> (forall a. m' a -> m a)  -- ^ Monad morphism from the wire monad.
-    -> Session m s         -- ^ State delta generator.
-    -> Wire s e m' a b     -- ^ Wire to run.
-    -> m ()
-reactimateM getInput process m = loop
+newtype Session m s =
+    Session {
+      stepSession :: m (s, Session m s)
+    }
+    deriving (Functor)
+
+instance (Applicative m) => Applicative (Session m) where
+    pure x = let s = Session (pure (x, s)) in s
+
+    Session ff <*> Session fx =
+        Session $ liftA2 (\(f, sf) (x, sx) -> (f x, sf <*> sx)) ff fx
+
+
+-- | This state delta type denotes time deltas.  This is necessary for
+-- most FRP applications.
+
+data Timed t s = Timed t s
+    deriving (Data, Eq, Foldable, Functor,
+              Ord, Read, Show, Traversable, Typeable)
+
+instance (Monoid s, Real t) => HasTime t (Timed t s) where
+    dtime (Timed dt _) = dt
+
+instance (Monoid s, Num t) => Monoid (Timed t s) where
+    mempty = Timed 0 mempty
+
+    mappend (Timed dt1 ds1) (Timed dt2 ds2) =
+        let dt = dt1 + dt2
+            ds = ds1 <> ds2
+        in dt `seq` ds `seq` Timed dt ds
+
+
+-- | State delta generator for a real time clock.
+
+clockSession :: (MonadIO m) => Session m (s -> Timed NominalDiffTime s)
+clockSession =
+    Session $ do
+        t0 <- liftIO getCurrentTime
+        return (Timed 0, loop t0)
+
     where
-    loop s' w' = do
-        x' <- getInput
-        (ds, s) <- stepSession s'
-        (mx, w) <- m (stepWire w' ds (Right x'))
-        q <- process mx
-        case q of
-          Quit   -> return ()
-          NoQuit -> loop s w
+    loop t' =
+        Session $ do
+            t <- liftIO getCurrentTime
+            let dt = diffUTCTime t t'
+            dt `seq` return (Timed dt, loop t)
 
 
--- | Test the given wire.  Press Ctrl-C to abort.
+-- | Non-extending version of 'clockSession'.
 
-testWire ::
-    (MonadIO m, Show b, Show e)
-    => Int  -- ^ Show output every this number of iterations.
-    -> m a  -- ^ Input generator.
-    -> Session m s    -- ^ State delta generator.
-    -> WireP s e a b  -- ^ Wire to run.
-    -> m c
-testWire n getInput s0 w0 =
-    testWireM n getInput (return . runIdentity) s0 w0
+clockSession_ :: (Applicative m, MonadIO m) => Session m (Timed NominalDiffTime ())
+clockSession_ = clockSession <*> pure ()
 
 
--- | Simplified interface to 'testWire' for wires that ignore their
--- input.
+-- | State delta generator for a simple counting clock.  Denotes a fixed
+-- framerate.  This is likely more useful than 'clockSession' for
+-- simulations and real-time games.
 
-testWire_ ::
-    (MonadIO m, Show b, Show e)
-    => Int  -- ^ Show output every this number of iterations.
-    -> Session m s           -- ^ State delta generator.
-    -> (forall a. WireP s e a b)  -- ^ Wire to run.
-    -> m c
-testWire_ n s0 w0 =
-    testWireM_ n (return . runIdentity) s0 w0
-
-
--- | Like 'testWire', but for effectful wires.
-
-testWireM ::
-    (Monad m', MonadIO m, Show b, Show e)
-    => Int  -- ^ Show output every this number of iterations.
-    -> m a  -- ^ Input generator.
-    -> (forall a. m' a -> m a)  -- ^ Monad morphism from the wire monad.
-    -> Session m s         -- ^ State delta generator.
-    -> Wire s e m' a b     -- ^ Wire to run.
-    -> m c
-testWireM n getInput m = loop 0
-    where
-    loop i s' w' = do
-        x' <- getInput
-        (ds, s) <- stepSession s'
-        (mx, w) <- m (stepWire w' ds (Right x'))
-        if i < n
-          then mx `seq` loop (succ i) s w
-          else do
-              liftIO $ do
-                  putChar '\r'
-                  putStr (either (("I:" ++ ) . show) show mx)
-                  putStr "\27[K"
-                  hFlush stdout
-              loop 0 s w
+countSession ::
+    (Applicative m)
+    => t  -- ^ Increment size.
+    -> Session m (s -> Timed t s)
+countSession dt =
+    let loop = Session (pure (Timed dt, loop))
+    in loop
 
 
--- | Simplified interface to 'testWireM' for wires that ignore their
--- input.
+-- | Non-extending version of 'countSession'.
 
-testWireM_ ::
-    (Monad m', MonadIO m, Show b, Show e)
-    => Int  -- ^ Show output every this number of iterations.
-    -> (forall a. m' a -> m a)      -- ^ Monad morphism from the wire monad.
-    -> Session m s             -- ^ State delta generator.
-    -> (forall a. Wire s e m' a b)  -- ^ Wire to run.
-    -> m c
-testWireM_ n m s0 w0 = testWireM n (return ()) m s0 w0
+countSession_ :: (Applicative m, MonadIO m) => t -> Session m (Timed t ())
+countSession_ dt = countSession dt <*> pure ()
