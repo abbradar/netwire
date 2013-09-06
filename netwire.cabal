@@ -50,6 +50,7 @@ library
         Control.Wire.Session
         Control.Wire.Switch
         Control.Wire.Time
+        Control.Wire.Unsafe.Event
 
 executable netwire-test
     build-depends:

@@ -16,6 +16,7 @@ module Control.Wire.Switch
 import qualified Data.Map as M
 import Control.Wire.Core
 import Control.Wire.Event
+import Control.Wire.Unsafe.Event
 
 
 -- | Acts like the first wire until it inhibits, then switches to the

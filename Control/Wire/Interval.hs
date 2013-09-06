@@ -28,6 +28,7 @@ import Control.Arrow
 import Control.Wire.Core
 import Control.Wire.Event
 import Control.Wire.Session
+import Control.Wire.Unsafe.Event
 import Data.Monoid
 import Prelude hiding (until)
 
