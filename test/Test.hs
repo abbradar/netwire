@@ -11,16 +11,10 @@ import Control.Wire
 import Prelude hiding ((.), id)
 
 
-netwireIsCool :: SimpleWire a String
-netwireIsCool =
-    for 2 . "Once upon a time..." -->
-    for 3 . "... games were completely imperative..." -->
-    for 2 . "... but then..." -->
-    for 10 . ("Netwire 5! " <>
-              (holdFor 0.5 . (now <& periodic 1) . "Hoo..." <|>
-               "...ray!")) -->
-    netwireIsCool
+wire :: SimpleWire a String
+wire =
+    holdFor 0.5 . periodicList 1 (cycle ["a", "b", "c"]) <|> "---"
 
 
 main :: IO ()
-main = testWire clockSession_ netwireIsCool
+main = testWire clockSession_ wire

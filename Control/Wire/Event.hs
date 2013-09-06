@@ -13,6 +13,7 @@ module Control.Wire.Event
       never,
       now,
       periodic,
+      periodicList,
 
       -- * Signal analysis
       became,
@@ -258,17 +259,14 @@ once =
         (mev, if occurred mev then never else once)
 
 
--- | Periodic occurrence with the given time distance @d@.  First
--- occurrence is at @d@.
+-- | Periodic occurrence with the given time period.  First occurrence
+-- is now.
 --
 -- * Depends: now when occurring.
 
-periodic ::
-    (HasTime t s)
-    => t
-    -> Wire s e m a (Event a)
+periodic :: (HasTime t s) => t -> Wire s e m a (Event a)
 periodic int | int <= 0 = error "periodic: Non-positive interval"
-periodic int = loop int
+periodic int = mkSFN $ \x -> (Event x, loop int)
     where
     loop 0 = loop int
     loop t' =
@@ -277,6 +275,25 @@ periodic int = loop int
             in if t <= 0
                  then (Event x, loop (mod' t int))
                  else (NoEvent, loop t)
+
+
+-- | Periodic occurrence with the given time period.  First occurrence
+-- is now.  The event values are picked one by one from the given list.
+-- When the list is exhausted, the event does not occur again.
+
+periodicList :: (HasTime t s) => t -> [b] -> Wire s e m a (Event b)
+periodicList int _ | int <= 0 = error "periodic: Non-positive interval"
+periodicList _ [] = never
+periodicList int (x:xs) = mkSFN $ \_ -> (Event x, loop int xs)
+    where
+    loop _ [] = never
+    loop 0 xs = loop int xs
+    loop t' xs0@(x:xs) =
+        mkSF $ \ds _ ->
+            let t = t' - dtime ds
+            in if t <= 0
+                 then (Event x, loop (mod' t int) xs)
+                 else (NoEvent, loop t xs0)
 
 
 -- | Product of all events.
