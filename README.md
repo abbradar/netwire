@@ -15,7 +15,7 @@ when working with wires, including `Control.Category`.  This is why we
 need the explicit `Prelude` import.
 
 In general wires are generalized automaton arrows, so you can express
-many design patterns using them.  The `netwire-frp` package provides a
+many design patterns using them.  The FRP.Netwire module provides a
 proper FRP framework based on them, which strictly respects continuous
 time and discrete event semantics.
 
@@ -200,8 +200,10 @@ If you have trouble wrapping your head around such an expression it may
 help to read `a*b + c` mathematically as $a(t) b(t) + c(t)$ and read
 `time` as simply $t$.
 
-So far we have seen wires that ignore their input.  The following wire,
-found in the `netwire-frp` package, uses its input:
+So far we have seen wires that ignore their input.  The following wire
+uses its input:
+
+    import FRP.Netwire
 
     integral 5
 
@@ -317,9 +319,9 @@ constructors of the `Event` type to enable framework developers to
 implement their own events.  A game engine may include events for key
 presses or certain things happening in the scene.  However, as an
 application developer you should view this type as being opaque.  In
-fact `netwire-frp` does not export the constructors of `Event`.  This is
-necessary in order to protect continuous time semantics.  You cannot
-access event values directly.
+fact Netwire does not export the constructors of `Event` by default.
+This is necessary in order to protect continuous time semantics.  You
+cannot access event values directly.
 
 There are a number of ways to respond to an event.  The primary way to
 do this in Netwire is to turn events into intervals.  There are a number
