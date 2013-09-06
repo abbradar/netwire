@@ -25,6 +25,7 @@ library
         containers   >= 0.5 && < 1,
         deepseq      >= 1.3 && < 2,
         parallel     >= 3.2 && < 4,
+        random       >= 1.0 && < 2,
         semigroups   >= 0.9 && < 1,
         transformers >= 0.3 && < 1,
         time         >= 1.4 && < 2
@@ -51,6 +52,11 @@ library
         Control.Wire.Switch
         Control.Wire.Time
         Control.Wire.Unsafe.Event
+        FRP.Netwire
+        FRP.Netwire.Analyze
+        FRP.Netwire.Move
+        FRP.Netwire.Noise
+        FRP.Netwire.Utils.Timeline
 
 executable netwire-test
     build-depends:
