@@ -11,11 +11,14 @@ module Control.Wire.Unsafe.Event
       -- * Helper functions
       event,
       merge,
-      occurred
+      occurred,
+      onEventM
     )
     where
 
 import Control.DeepSeq
+import Control.Monad
+import Control.Wire.Core
 import Data.Semigroup
 import Data.Typeable
 
@@ -63,3 +66,13 @@ merge f (Event x) (Event y) = Event (f x y)
 
 occurred :: Event a -> Bool
 occurred = event False (const True)
+
+
+-- | Each time the given event occurs, perform the given action with the
+-- value the event carries.  The resulting event carries the result of
+-- the action.
+--
+-- * Depends: now.
+
+onEventM :: (Monad m) => (a -> m b) -> Wire s e m (Event a) (Event b)
+onEventM c = mkGen_ $ liftM Right . event (return NoEvent) (liftM Event . c)
