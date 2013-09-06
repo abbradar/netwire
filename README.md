@@ -6,18 +6,20 @@ inhibition.  It implements three related concepts, *wires*, *intervals*
 and *events*, the most important of which is the *wire*.  To work with
 wires we will need a few imports:
 
-    import Control.Wire
+    import FRP.Netwire
     import Prelude hiding ((.), id)
 
-The `Control.Wire` module exports the basic types and helper functions.
+The `FRP.Netwire` module exports the basic types and helper functions.
 It also has some convenience reexports you will pretty much always need
 when working with wires, including `Control.Category`.  This is why we
 need the explicit `Prelude` import.
 
 In general wires are generalized automaton arrows, so you can express
-many design patterns using them.  The FRP.Netwire module provides a
+many design patterns using them.  The `FRP.Netwire` module provides a
 proper FRP framework based on them, which strictly respects continuous
-time and discrete event semantics.
+time and discrete event semantics.  When developing a framework based on
+Netwire, e.g. a GUI library or a game engine, you may want to import
+`Control.Wire` instead.
 
 
 Introduction
@@ -25,7 +27,7 @@ Introduction
 
 The following type is central to the entire library:
 
-    newtype Wire s e m a b
+    data Wire s e m a b
 
 Don't worry about the large number of type arguments.  They all have
 very simple meanings, which will be explained below.
@@ -203,8 +205,6 @@ help to read `a*b + c` mathematically as $a(t) b(t) + c(t)$ and read
 So far we have seen wires that ignore their input.  The following wire
 uses its input:
 
-    import FRP.Netwire
-
     integral 5
 
 It literally integrates its input value with respect to time.  Its
@@ -314,12 +314,12 @@ For example the predefined `never` event is the event that never occurs:
 
     never :: Wire s e m a (Event b)
 
-As suggested by the type events contain a value.  Netwire exports the
-constructors of the `Event` type to enable framework developers to
-implement their own events.  A game engine may include events for key
-presses or certain things happening in the scene.  However, as an
-application developer you should view this type as being opaque.  In
-fact Netwire does not export the constructors of `Event` by default.
+As suggested by the type events contain a value.  Netwire does not
+export the constructors of the `Event` type by default.  If you are a
+framework developer you can import the `Control.Wire.Unsafe.Event`
+module to implement your own events.  A game engine may include events
+for key presses or certain things happening in the scene.  However, as
+an application developer you should view this type as being opaque.
 This is necessary in order to protect continuous time semantics.  You
 cannot access event values directly.
 
@@ -387,8 +387,8 @@ then wires themselves form a monoid:
     w1 <> w2 = liftA2 (<>) w1 w2
 
 There are many predefined event-wires and many combinators for
-manipulating events in the `Control.Wire.Event` module.  One of the most
-common events is the `now` event:
+manipulating events in the `Control.Wire.Event` module.  A common events
+is the `now` event:
 
     now :: Wire s e m a (Event a)
 
@@ -428,7 +428,10 @@ Recursion is fully supported.  Here is a fun example:
         for 2 . "Once upon a time..." -->
         for 3 . "... games were completely imperative..." -->
         for 2 . "... but then..." -->
-        for 10 . ("Netwire 5! " <>
-                  (holdFor 0.5 . (now <& periodic 1) . "Hoo..." <|>
-                   "...ray!")) -->
+        for 10 . ("Netwire 5! " <> anim) -->
         netwireIsCool
+
+      where
+        anim =
+            holdFor 0.5 . periodic 1 . "Hoo..." <|>
+            "...ray!"
