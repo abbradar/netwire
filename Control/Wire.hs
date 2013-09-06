@@ -22,7 +22,7 @@ module Control.Wire
       module Control.Applicative,
       module Control.Arrow,
       module Control.Category,
-      module Data.Monoid,
+      module Data.Semigroup,
       Identity(..),
       NominalDiffTime
     )
@@ -39,7 +39,7 @@ import Control.Wire.Session
 import Control.Wire.Switch
 import Control.Wire.Time
 import Data.Functor.Identity
-import Data.Monoid
+import Data.Semigroup
 import Data.Time.Clock
 
 

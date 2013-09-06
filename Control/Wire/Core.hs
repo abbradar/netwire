@@ -37,6 +37,7 @@ module Control.Wire.Core
     )
     where
 
+import qualified Data.Semigroup as Sg
 import Control.Applicative
 import Control.Arrow
 import Control.Category
@@ -212,6 +213,9 @@ instance (Monad m, Num b) => Num (Wire s e m a b) where
     negate = fmap negate
     signum = fmap signum
     fromInteger = pure . fromInteger
+
+instance (Monad m, Sg.Semigroup b) => Sg.Semigroup (Wire s e m a b) where
+    (<>) = liftA2 (Sg.<>)
 
 
 -- | Left-strict version of '&&&' for functions.
