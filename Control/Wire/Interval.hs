@@ -18,10 +18,10 @@ module Control.Wire.Interval
 
       -- * Event-based intervals
       asSoonAs,
+      between,
       hold,
       holdFor,
-      until,
-      between
+      until
     )
     where
 
@@ -53,6 +53,29 @@ after t' =
 
 asSoonAs :: (Monoid e) => Wire s e m (Event a) a
 asSoonAs = hold
+
+
+-- | Start each time the left event occurs, stop each time the right
+-- event occurs.
+--
+-- * Depends: now when active.
+--
+-- * Inhibits: after the right event occurred, before the left event
+-- occurs.
+
+between :: (Monoid e) => Wire s e m (a, Event b, Event c) a
+between =
+    mkPureN $ \(x, onEv, _) ->
+        event (Left mempty, between)
+              (const (Right x, active))
+              onEv
+
+    where
+    active =
+        mkPureN $ \(x, _, offEv) ->
+            event (Right x, active)
+                  (const (Left mempty, between))
+                  offEv
 
 
 -- | For the given time period.
@@ -159,15 +182,3 @@ when :: (Monoid e) => (a -> Bool) -> Wire s e m a a
 when p =
     mkPure_ $ \x ->
         if p x then Right x else Left mempty
-
-
--- | Inhibit until the left event occurs and then produce values until
--- the right event occurs.
-between :: Monoid e => Wire s e m (a, Event b, Event c) a
-between =
-    mkPureN $ \(a, l, _) ->
-        event (Left mempty, between) (const (Right a, waitRight)) l
-    where
-    waitRight =
-        mkPureN $ \(a, _, r) ->
-            event (Right a, waitRight) (const (Left mempty, between)) r
