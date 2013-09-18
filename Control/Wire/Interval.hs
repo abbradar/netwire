@@ -20,7 +20,8 @@ module Control.Wire.Interval
       asSoonAs,
       hold,
       holdFor,
-      until
+      until,
+      between
     )
     where
 
@@ -158,3 +159,15 @@ when :: (Monoid e) => (a -> Bool) -> Wire s e m a a
 when p =
     mkPure_ $ \x ->
         if p x then Right x else Left mempty
+
+
+-- | Inhibit until the left event occurs and then produce values until
+-- the right event occurs.
+between :: Monoid e => Wire s e m (a, Event b, Event c) a
+between =
+    mkPureN $ \(a, l, _) ->
+        event (Left mempty, between) (const (Right a, waitRight)) l
+    where
+    waitRight =
+        mkPureN $ \(a, _, r) ->
+            event (Right a, waitRight) (const (Left mempty, between)) r
