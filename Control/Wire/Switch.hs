@@ -51,8 +51,8 @@ w1' --> w2' =
     WGen $ \ds mx' -> do
         (mx, w1) <- stepWire w1' ds mx'
         case mx of
-          Left _  -> stepWire w2' ds mx'
-          Right _ -> mx `seq` return (mx, w1 --> w2')
+          Left _ | Right _ <- mx' -> stepWire w2' ds mx'
+          _                       -> mx `seq` return (mx, w1 --> w2')
 
 infixr 1 -->
 
