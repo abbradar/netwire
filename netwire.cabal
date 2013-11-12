@@ -9,11 +9,16 @@ license:       BSD3
 license-file:  LICENSE
 build-type:    Simple
 cabal-version: >= 1.10
-extra-source-files: README.md
+extra-source-files: README.md default.nix
 description:
     This library provides interfaces for and implements wire arrows
     useful both for functional reactive programming (FRP) and locally
     stateful programming (LSP).
+
+flag TestProgram
+    default: False
+    description: Build the test program
+    manual: True
 
 Source-repository head
     type:     darcs
@@ -71,6 +76,10 @@ executable netwire-test
     ghc-options: -threaded -rtsopts
     hs-source-dirs: test
     main-is: Test.hs
+    if flag(testprogram)
+        buildable: True
+    else
+        buildable: False
 
 -- test-suite tests
 --     type: exitcode-stdio-1.0
