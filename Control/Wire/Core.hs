@@ -218,6 +218,10 @@ instance (Monad m, Monoid e) => Strong (Wire s e m) where
   first' = first
   second' = second
 
+instance (Monad m, Monoid e) => Choice (Wire s e m) where
+  left' = left
+  right' = right
+
 instance (Monad m, IsString b) => IsString (Wire s e m a b) where
     fromString = pure . fromString
 
