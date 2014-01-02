@@ -214,6 +214,10 @@ instance (Monad m) => Profunctor (Wire s e m) where
 
     rmap = fmap
 
+instance (Monad m, Monoid e) => Strong (Wire s e m) where
+  first' = first
+  second' = second
+
 instance (Monad m, IsString b) => IsString (Wire s e m a b) where
     fromString = pure . fromString
 
