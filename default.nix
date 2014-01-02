@@ -19,6 +19,7 @@ in rec {
 
       buildDepends = [
         hs.parallel
+        hs.profunctors
         hs.QuickCheck
         hs.semigroups
         hs.testFramework
