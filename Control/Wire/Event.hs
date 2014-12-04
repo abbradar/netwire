@@ -22,6 +22,7 @@ module Control.Wire.Event
       -- * Modifiers
       (<&),
       (&>),
+      (<!>),
       dropE,
       dropWhileE,
       filterE,
@@ -62,7 +63,7 @@ import Data.Fixed
 -- * Inhibits: when any of the two wires inhibit.
 
 (<&) :: (Monad m) => Wire s e m a (Event b) -> Wire s e m a (Event b) -> Wire s e m a (Event b)
-(<&) = liftA2 (merge const)
+(<&) = liftA2 mergeL
 
 infixl 5 <&
 
@@ -75,9 +76,21 @@ infixl 5 <&
 -- * Inhibits: when any of the two wires inhibit.
 
 (&>) :: (Monad m) => Wire s e m a (Event b) -> Wire s e m a (Event b) -> Wire s e m a (Event b)
-(&>) = liftA2 (merge (const id))
+(&>) = liftA2 mergeR
 
 infixl 5 &>
+
+
+-- | Merge events discarding their values. Infixl 5.
+--
+-- * Depends: now on both.
+--
+-- * Inhibits: when any of the two wires inhibit.
+
+(<!>) :: (Monad m) => Wire s e m a (Event e1) -> Wire s e m a (Event e2) -> Wire s e m a (Event ())
+(<!>) = liftA2 mergeD
+
+infixl 5 <!>
 
 
 -- | Left scan for events.  Each time an event occurs, apply the given
@@ -212,6 +225,12 @@ mergeL = merge const
 
 mergeR :: Event a -> Event a -> Event a
 mergeR = merge (const id)
+
+
+-- | Event merge discarding data.
+
+mergeD :: (EventLike ev) => ev a -> ev b -> ev ()
+mergeD a b = mergeL (fmap (const ()) a) (fmap (const ()) b)
 
 
 -- | Never occurs.
