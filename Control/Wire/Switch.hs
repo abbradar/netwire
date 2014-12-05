@@ -65,15 +65,15 @@ infixr 1 -->
 -- * Switch: once, after now, restart state.
 
 dkSwitch ::
-    (Monad m)
+    (Monad m, EventLike ev)
     => Wire s e m a b
-    -> Wire s e m (a, b) (Event (Wire s e m a b -> Wire s e m a b))
+    -> Wire s e m (a, b) (ev (Wire s e m a b -> Wire s e m a b))
     -> Wire s e m a b
 dkSwitch w1' w2' =
     WGen $ \ds mx' -> do
         (mx,  w1) <- stepWire w1' ds mx'
         (mev, w2) <- stepWire w2' ds (liftA2 (,) mx' mx)
-        let w | Right (Event sw) <- mev = sw w1
+        let w | Right (toEvent -> Event sw) <- mev = sw w1
               | otherwise = dkSwitch w1 w2
         return (mx, w)
 
@@ -85,12 +85,12 @@ dkSwitch w1' w2' =
 -- * Switch: recurrent, after now, restart state.
 
 drSwitch ::
-    (Monad m)
+    (Monad m, EventLike ev)
     => Wire s e m a b
-    -> Wire s e m (a, Event (Wire s e m a b)) b
+    -> Wire s e m (a, ev (Wire s e m a b)) b
 drSwitch w' =
     WGen $ \ds mx' ->
-        let nw w | Right (_, Event w1) <- mx' = w1
+        let nw w | Right (_, toEvent -> Event w1) <- mx' = w1
                  | otherwise = w
         in liftM (second (drSwitch . nw)) (stepWire w' ds (fmap fst mx'))
 
@@ -102,13 +102,13 @@ drSwitch w' =
 -- * Switch: once, after now, restart state.
 
 dSwitch ::
-    (Monad m)
-    => Wire s e m a (b, Event (Wire s e m a b))
+    (Monad m, EventLike ev)
+    => Wire s e m a (b, ev (Wire s e m a b))
     -> Wire s e m a b
 dSwitch w' =
     WGen $ \ds mx' -> do
         (mx, w) <- stepWire w' ds mx'
-        let nw | Right (_, Event w1) <- mx = w1
+        let nw | Right (_, toEvent -> Event w1) <- mx = w1
                | otherwise = dSwitch w
         return (fmap fst mx, nw)
 
@@ -120,12 +120,12 @@ dSwitch w' =
 -- * Switch: recurrent, after now, restart state.
 
 dkrSwitch ::
-    (Monad m)
+    (Monad m, EventLike ev)
     => Wire s e m a b
-    -> Wire s e m (a, Event (Wire s e m a b -> Wire s e m a b)) b
+    -> Wire s e m (a, ev (Wire s e m a b -> Wire s e m a b)) b
 dkrSwitch w' =
     WGen $ \ds mx' ->
-        let nw w | Right (_, Event f) <- mx' = f w
+        let nw w | Right (_, toEvent -> Event f) <- mx' = f w
                  | otherwise = w
         in liftM (second (dkrSwitch . nw)) (stepWire w' ds (fmap fst mx'))
 
@@ -141,17 +141,17 @@ dkrSwitch w' =
 -- * Switch: once, now, restart state.
 
 kSwitch ::
-    (Monad m, Monoid s)
+    (Monad m, Monoid s, EventLike ev)
     => Wire s e m a b
-    -> Wire s e m (a, b) (Event (Wire s e m a b -> Wire s e m a b))
+    -> Wire s e m (a, b) (ev (Wire s e m a b -> Wire s e m a b))
     -> Wire s e m a b
 kSwitch w1' w2' =
     WGen $ \ds mx' -> do
         (mx,  w1) <- stepWire w1' ds mx'
         (mev, w2) <- stepWire w2' ds (liftA2 (,) mx' mx)
         case mev of
-          Right (Event sw) -> stepWire (sw w1) mempty mx'
-          _                -> return (mx, kSwitch w1 w2)
+          Right (toEvent -> Event sw) -> stepWire (sw w1) mempty mx'
+          _                          -> return (mx, kSwitch w1 w2)
 
 
 -- | Extrinsic continuable switch.  This switch works like 'rSwitch',
@@ -163,12 +163,12 @@ kSwitch w1' w2' =
 -- * Switch: recurrent, now, restart state.
 
 krSwitch ::
-    (Monad m)
+    (Monad m, EventLike ev)
     => Wire s e m a b
-    -> Wire s e m (a, Event (Wire s e m a b -> Wire s e m a b)) b
+    -> Wire s e m (a, ev (Wire s e m a b -> Wire s e m a b)) b
 krSwitch w'' =
     WGen $ \ds mx' ->
-        let w' | Right (_, Event f) <- mx' = f w''
+        let w' | Right (_, toEvent -> Event f) <- mx' = f w''
                | otherwise = w''
         in liftM (second krSwitch) (stepWire w' ds (fmap fst mx'))
 
@@ -188,10 +188,10 @@ krSwitch w'' =
 -- * Switch: now on mode change.
 
 modes ::
-    (Monad m, Ord k)
+    (Monad m, Ord k, EventLike ev)
     => k  -- ^ Initial mode.
     -> (k -> Wire s e m a b)  -- ^ Select wire for given mode.
-    -> Wire s e m (a, Event k) b
+    -> Wire s e m (a, ev k) b
 modes m0 select = loop M.empty m0 (select m0)
     where
     loop ms' m' w'' =
@@ -201,7 +201,7 @@ modes m0 select = loop M.empty m0 (select m0)
                   (mx, w) <- stepWire w'' ds (fmap fst mxev')
                   return (mx, loop ms' m' w)
               Right (x', ev) -> do
-                  let (ms, m, w') = switch ms' m' w'' ev
+                  let (ms, m, w') = switch ms' m' w'' $ toEvent ev
                   (mx, w) <- stepWire w' ds (Right x')
                   return (mx, loop ms m w)
 
@@ -221,12 +221,12 @@ modes m0 select = loop M.empty m0 (select m0)
 -- * Switch: recurrent, now, restart state.
 
 rSwitch ::
-    (Monad m)
+    (Monad m, EventLike ev)
     => Wire s e m a b
-    -> Wire s e m (a, Event (Wire s e m a b)) b
+    -> Wire s e m (a, ev (Wire s e m a b)) b
 rSwitch w'' =
     WGen $ \ds mx' ->
-        let w' | Right (_, Event w1) <- mx' = w1
+        let w' | Right (_, toEvent -> Event w1) <- mx' = w1
                | otherwise = w''
         in liftM (second rSwitch) (stepWire w' ds (fmap fst mx'))
 
@@ -239,12 +239,12 @@ rSwitch w'' =
 -- * Switch: once, now, restart state.
 
 switch ::
-    (Monad m, Monoid s)
-    => Wire s e m a (b, Event (Wire s e m a b))
+    (Monad m, Monoid s, EventLike ev)
+    => Wire s e m a (b, ev (Wire s e m a b))
     -> Wire s e m a b
 switch w' =
     WGen $ \ds mx' -> do
         (mx, w) <- stepWire w' ds mx'
         case mx of
-          Right (_, Event w1) -> stepWire w1 mempty mx'
-          _                   -> return (fmap fst mx, switch w)
+          Right (_, toEvent -> Event w1) -> stepWire w1 mempty mx'
+          _                             -> return (fmap fst mx, switch w)

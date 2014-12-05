@@ -6,13 +6,16 @@
 
 module Control.Wire.Unsafe.Event
     ( -- * Events
+      EventLike(..),
       Event(..),
-
+      UniqueEvent(..),
+      coerceEvent,
       -- * Helper functions
       event,
       merge,
       occurred,
-      onEventM
+      onEventM,
+      onE
     )
     where
 
@@ -21,6 +24,14 @@ import Control.Monad
 import Control.Wire.Core
 import Data.Semigroup
 import Data.Typeable
+
+
+-- | Class of various events that can be converted into the abstract
+--   'Event'.
+
+class Functor e => EventLike e where
+  toEvent :: e a -> Event a
+  fromEvent :: Event a -> e a
 
 
 -- | Denotes a stream of values, each together with time of occurrence.
@@ -44,27 +55,56 @@ instance (NFData a) => NFData (Event a) where
 instance (Semigroup a) => Semigroup (Event a) where
     (<>) = merge (<>)
 
+instance EventLike Event where
+  toEvent = id
+  fromEvent = id
+
+
+-- | An 'Event' which has a proof of uniqueness, that is, each time a
+-- wire observes some as its input, it can assume that it's different
+-- from before.
+--
+-- 'UniqueEvent' must *not* be saved in state end emitted later -- this
+-- would break its main assumption. Sadly, we can't guarantee this with
+-- types yet.
+
+newtype UniqueEvent a = UniqueEvent (Event a)
+                      deriving (Typeable,
+                               Functor,
+                               Monoid,
+                               NFData,
+                               Semigroup,
+                               EventLike)
+
+
+-- | Coerce between different event types.
+
+coerceEvent :: (EventLike e1, EventLike e2) => e1 a -> e2 a
+coerceEvent = fromEvent . toEvent
+
 
 -- | Fold the given event.
 
-event :: b -> (a -> b) -> Event a -> b
-event _ j (Event x) = j x
-event n _ NoEvent   = n
+event :: (EventLike e) => b -> (a -> b) -> e a -> b
+event n j = event' . toEvent
+  where event' (Event x) = j x
+        event' NoEvent = n
 
 
 -- | Merge two events using the given function when both occur at the
 -- same time.
 
-merge :: (a -> a -> a) -> Event a -> Event a -> Event a
-merge _ NoEvent NoEvent     = NoEvent
-merge _ (Event x) NoEvent   = Event x
-merge _ NoEvent (Event y)   = Event y
-merge f (Event x) (Event y) = Event (f x y)
+merge :: (EventLike e) => (a -> a -> a) -> e a -> e a -> e a
+merge f e1 e2 = fromEvent $ case (toEvent e1, toEvent e2) of
+                             (NoEvent, NoEvent) -> NoEvent
+                             (Event x, NoEvent) -> Event x
+                             (NoEvent, Event y) -> Event y
+                             (Event x, Event y) -> Event (f x y)
 
 
 -- | Did the given event occur?
 
-occurred :: Event a -> Bool
+occurred :: (EventLike e) => e a -> Bool
 occurred = event False (const True)
 
 
@@ -74,5 +114,15 @@ occurred = event False (const True)
 --
 -- * Depends: now.
 
-onEventM :: (Monad m) => (a -> m b) -> Wire s e m (Event a) (Event b)
-onEventM c = mkGen_ $ liftM Right . event (return NoEvent) (liftM Event . c)
+onEventM :: (EventLike ev, Monad m) => (a -> m b) -> Wire s e m (ev a) (ev b)
+onEventM c = mkGen_ $ liftM Right . event (return $ fromEvent NoEvent) (liftM (fromEvent . Event) . c)
+
+
+-- | Emit an event's value when it arrives.
+--
+-- * Depends: now.
+--
+-- * Inhibits: while no event happens.
+
+onE :: (EventLike ev, Monoid e) => Wire s e m (ev a) a
+onE = mkPure_ $ event (Left mempty) Right

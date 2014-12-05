@@ -29,7 +29,7 @@ noise ::
     (HasTime t s, Random b, RandomGen g)
     => t  -- ^ Time period.
     -> g  -- ^ Random number generator.
-    -> Wire s e m a (Event b)
+    -> Wire s e m a (UniqueEvent b)
 noise int | int <= 0 = error "noise: Non-positive interval"
 noise int = periodicList int . randoms
 
@@ -42,7 +42,7 @@ noiseR ::
     => t       -- ^ Step duration.
     -> (b, b)  -- ^ Noise range.
     -> g       -- ^ Random number generator.
-    -> Wire s e m a (Event b)
+    -> Wire s e m a (UniqueEvent b)
 noiseR int _ | int <= 0 = error "noiseR: Non-positive interval"
 noiseR int r = periodicList int . randomRs r
 
@@ -53,7 +53,7 @@ stdNoise ::
     (HasTime t s, Random b)
     => t    -- ^ Step duration.
     -> Int  -- ^ 'StdGen' seed.
-    -> Wire s e m a (Event b)
+    -> Wire s e m a (UniqueEvent b)
 stdNoise int = noise int . mkStdGen
 
 
@@ -64,7 +64,7 @@ stdNoiseR ::
     => t       -- ^ Step duration.
     -> (b, b)  -- ^ Noise range.
     -> Int     -- ^ 'StdGen' seed.
-    -> Wire s e m a (Event b)
+    -> Wire s e m a (UniqueEvent b)
 stdNoiseR int r = noiseR int r . mkStdGen
 
 

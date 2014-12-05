@@ -47,6 +47,8 @@ library
         MultiParamTypeClasses
         RankNTypes
         TupleSections
+        GeneralizedNewtypeDeriving
+        ViewPatterns
     ghc-options: -W
     exposed-modules:
         Control.Wire

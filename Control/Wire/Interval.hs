@@ -51,7 +51,7 @@ after t' =
 
 -- | Alias for 'hold'.
 
-asSoonAs :: (Monoid e) => Wire s e m (Event a) a
+asSoonAs :: (Monoid e, EventLike ev) => Wire s e m (ev a) a
 asSoonAs = hold
 
 
@@ -63,7 +63,7 @@ asSoonAs = hold
 -- * Inhibits: after the right event occurred, before the left event
 -- occurs.
 
-between :: (Monoid e) => Wire s e m (a, Event b, Event c) a
+between :: (Monoid e, EventLike ev) => Wire s e m (a, ev b, ev c) a
 between =
     mkPureN $ \(x, onEv, _) ->
         event (Left mempty, between)
@@ -100,7 +100,7 @@ for t' =
 --
 -- * Inhibits: until the event occurs for the first time.
 
-hold :: (Monoid e) => Wire s e m (Event a) a
+hold :: (Monoid e, EventLike ev) => Wire s e m (ev a) a
 hold =
     mkPureN $
         event (Left mempty, hold)
@@ -121,7 +121,7 @@ hold =
 --
 -- * Inhibits: when no event occurred for the given amount of time.
 
-holdFor :: (HasTime t s, Monoid e) => t -> Wire s e m (Event a) a
+holdFor :: (HasTime t s, Monoid e, EventLike ev) => t -> Wire s e m (ev a) a
 holdFor int | int <= 0 = error "holdFor: Non-positive interval."
 holdFor int = off
     where
@@ -166,7 +166,7 @@ unless p =
 --
 -- * Inhibits: forever after event occurs.
 
-until :: (Monoid e) => Wire s e m (a, Event b) a
+until :: (Monoid e, EventLike ev) => Wire s e m (a, ev b) a
 until =
     mkPureN . uncurry $ \x ->
         event (Right x, until) (const (Left mempty, mkEmpty))

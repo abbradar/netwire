@@ -6,7 +6,9 @@
 
 module Control.Wire.Event
     ( -- * Events
+      EventLike(toEvent),
       Event,
+      UniqueEvent,
 
       -- * Time-based
       at,
@@ -18,6 +20,12 @@ module Control.Wire.Event
       -- * Signal analysis
       became,
       noLonger,
+
+      -- * Extracting
+      onUEventM,
+      onU,
+      occurredU,
+      eventU,
 
       -- * Modifiers
       (<&),
@@ -38,6 +46,7 @@ module Control.Wire.Event
       accumE,
       accum1E,
       iterateE,
+
       -- ** Special scans
       maximumE,
       minimumE,
@@ -48,11 +57,13 @@ module Control.Wire.Event
 
 import Control.Applicative
 import Control.Arrow
+import Control.Monad
 import Control.Monad.Fix
 import Control.Wire.Core
 import Control.Wire.Session
 import Control.Wire.Unsafe.Event
 import Data.Fixed
+import Data.Monoid
 
 
 -- | Merge events with the leftmost event taking precedence.  Equivalent
@@ -62,7 +73,7 @@ import Data.Fixed
 --
 -- * Inhibits: when any of the two wires inhibit.
 
-(<&) :: (Monad m) => Wire s e m a (Event b) -> Wire s e m a (Event b) -> Wire s e m a (Event b)
+(<&) :: (Monad m, EventLike ev) => Wire s e m a (ev b) -> Wire s e m a (ev b) -> Wire s e m a (ev b)
 (<&) = liftA2 mergeL
 
 infixl 5 <&
@@ -75,7 +86,7 @@ infixl 5 <&
 --
 -- * Inhibits: when any of the two wires inhibit.
 
-(&>) :: (Monad m) => Wire s e m a (Event b) -> Wire s e m a (Event b) -> Wire s e m a (Event b)
+(&>) :: (Monad m, EventLike ev) => Wire s e m a (ev b) -> Wire s e m a (ev b) -> Wire s e m a (ev b)
 (&>) = liftA2 mergeR
 
 infixl 5 &>
@@ -87,7 +98,7 @@ infixl 5 &>
 --
 -- * Inhibits: when any of the two wires inhibit.
 
-(<!>) :: (Monad m) => Wire s e m a (Event e1) -> Wire s e m a (Event e2) -> Wire s e m a (Event ())
+(<!>) :: (Monad m, EventLike ev) => Wire s e m a (ev e1) -> Wire s e m a (ev e2) -> Wire s e m a (ev ())
 (<!>) = liftA2 mergeD
 
 infixl 5 <!>
@@ -99,15 +110,16 @@ infixl 5 <!>
 -- * Depends: now.
 
 accumE ::
-    (b -> a -> b)  -- ^ Fold function
-    -> b           -- ^ Initial value.
-    -> Wire s e m (Event a) (Event b)
+    (EventLike ev)
+    => (b -> a -> b)  -- ^ Fold function
+    -> b            -- ^ Initial value.
+    -> Wire s e m (ev a) (ev b)
 accumE f = loop
     where
     loop x' =
         mkSFN $
-            event (NoEvent, loop x')
-                  (\y -> let x = f x' y in (Event x, loop x))
+            event (fromEvent NoEvent, loop x')
+                  (\y -> let x = f x' y in (fromEvent $ Event x, loop x))
 
 
 -- | Left scan for events with no initial value.  Each time an event
@@ -117,12 +129,13 @@ accumE f = loop
 -- * Depends: now.
 
 accum1E ::
-    (a -> a -> a)  -- ^ Fold function
-    -> Wire s e m (Event a) (Event a)
+    (EventLike ev)
+    => (a -> a -> a)  -- ^ Fold function
+    -> Wire s e m (ev a) (ev a)
 accum1E f = initial
     where
     initial =
-        mkSFN $ event (NoEvent, initial) (Event &&& accumE f)
+        mkSFN $ event (fromEvent NoEvent, initial) (fromEvent . Event &&& accumE f)
 
 
 -- | At the given point in time.
@@ -132,13 +145,13 @@ accum1E f = initial
 at ::
     (HasTime t s)
     => t  -- ^ Time of occurrence.
-    -> Wire s e m a (Event a)
+    -> Wire s e m a (UniqueEvent a)
 at t' =
     mkSF $ \ds x ->
         let t = t' - dtime ds
         in if t <= 0
-             then (Event x, never)
-             else (NoEvent, at t)
+             then (fromEvent $ Event x, never)
+             else (fromEvent NoEvent, at t)
 
 
 -- | Occurs each time the predicate becomes true for the input signal,
@@ -157,12 +170,12 @@ became p = off
 --
 -- * Depends: now.
 
-dropE :: Int -> Wire s e m (Event a) (Event a)
+dropE :: (EventLike ev) => Int -> Wire s e m (ev a) (ev a)
 dropE n | n <= 0 = mkId
 dropE n =
     fix $ \again ->
     mkSFN $ \mev ->
-        (NoEvent, if occurred mev then dropE (pred n) else again)
+        (fromEvent NoEvent, if occurred mev then dropE (pred n) else again)
 
 
 -- | Forget all initial occurrences until the given predicate becomes
@@ -170,32 +183,32 @@ dropE n =
 --
 -- * Depends: now.
 
-dropWhileE :: (a -> Bool) -> Wire s e m (Event a) (Event a)
+dropWhileE :: (EventLike ev) => (a -> Bool) -> Wire s e m (ev a) (ev a)
 dropWhileE p =
     fix $ \again ->
     mkSFN $ \mev ->
-        case mev of
+        case toEvent mev of
           Event x | not (p x) -> (mev, mkId)
-          _ -> (NoEvent, again)
+          _ -> (fromEvent NoEvent, again)
 
 
 -- | Forget all occurrences for which the given predicate is false.
 --
 -- * Depends: now.
 
-filterE :: (a -> Bool) -> Wire s e m (Event a) (Event a)
+filterE :: (EventLike ev) => (a -> Bool) -> Wire s e m (ev a) (ev a)
 filterE p =
     mkSF_ $ \mev ->
-        case mev of
+        case toEvent mev of
           Event x | p x -> mev
-          _ -> NoEvent
+          _ -> fromEvent NoEvent
 
 
 -- | On each occurrence, apply the function the event carries.
 --
 -- * Depends: now.
 
-iterateE :: a -> Wire s e m (Event (a -> a)) (Event a)
+iterateE :: (EventLike ev) => a -> Wire s e m (ev (a -> a)) (ev a)
 iterateE = accumE (\x f -> f x)
 
 
@@ -203,7 +216,7 @@ iterateE = accumE (\x f -> f x)
 --
 -- * Depends: now.
 
-maximumE :: (Ord a) => Wire s e m (Event a) (Event a)
+maximumE :: (EventLike ev, Ord a) => Wire s e m (ev a) (ev a)
 maximumE = accum1E max
 
 
@@ -211,19 +224,19 @@ maximumE = accum1E max
 --
 -- * Depends: now.
 
-minimumE :: (Ord a) => Wire s e m (Event a) (Event a)
+minimumE :: (EventLike ev, Ord a) => Wire s e m (ev a) (ev a)
 minimumE = accum1E min
 
 
 -- | Left-biased event merge.
 
-mergeL :: Event a -> Event a -> Event a
+mergeL :: (EventLike ev) => ev a -> ev a -> ev a
 mergeL = merge const
 
 
 -- | Right-biased event merge.
 
-mergeR :: Event a -> Event a -> Event a
+mergeR :: (EventLike ev) => ev a -> ev a -> ev a
 mergeR = merge (const id)
 
 
@@ -235,8 +248,8 @@ mergeD a b = mergeL (fmap (const ()) a) (fmap (const ()) b)
 
 -- | Never occurs.
 
-never :: Wire s e m a (Event b)
-never = mkConst (Right NoEvent)
+never :: (EventLike ev) => Wire s e m a (ev b)
+never = mkConst (Right $ fromEvent NoEvent)
 
 
 -- | Occurs each time the predicate becomes false for the input signal,
@@ -255,27 +268,27 @@ noLonger p = off
 --
 -- * Depends: now.
 
-notYet :: Wire s e m (Event a) (Event a)
+notYet :: (EventLike ev) => Wire s e m (ev a) (ev a)
 notYet =
-    mkSFN $ event (NoEvent, notYet) (const (NoEvent, mkId))
+    mkSFN $ event (fromEvent NoEvent, notYet) (const (fromEvent NoEvent, mkId))
 
 
 -- | Occurs once immediately.
 --
 -- * Depends: now when occurring.
 
-now :: Wire s e m a (Event a)
-now = mkSFN $ \x -> (Event x, never)
+now :: Wire s e m a (UniqueEvent a)
+now = mkSFN $ \x -> (fromEvent $ Event x, never)
 
 
 -- | Forget all occurrences except the first.
 --
 -- * Depends: now when occurring.
 
-once :: Wire s e m (Event a) (Event a)
+once :: (EventLike ev) => Wire s e m (ev a) (UniqueEvent a)
 once =
     mkSFN $ \mev ->
-        (mev, if occurred mev then never else once)
+        (fromEvent $ toEvent mev, if occurred mev then never else once)
 
 
 -- | Periodic occurrence with the given time period.  First occurrence
@@ -283,27 +296,27 @@ once =
 --
 -- * Depends: now when occurring.
 
-periodic :: (HasTime t s) => t -> Wire s e m a (Event a)
+periodic :: (HasTime t s) => t -> Wire s e m a (UniqueEvent a)
 periodic int | int <= 0 = error "periodic: Non-positive interval"
-periodic int = mkSFN $ \x -> (Event x, loop int)
+periodic int = mkSFN $ \x -> (fromEvent $ Event x, loop int)
     where
     loop 0 = loop int
     loop t' =
         mkSF $ \ds x ->
             let t = t' - dtime ds
             in if t <= 0
-                 then (Event x, loop (mod' t int))
-                 else (NoEvent, loop t)
+                 then (fromEvent $ Event x, loop (mod' t int))
+                 else (fromEvent NoEvent, loop t)
 
 
 -- | Periodic occurrence with the given time period.  First occurrence
 -- is now.  The event values are picked one by one from the given list.
 -- When the list is exhausted, the event does not occur again.
 
-periodicList :: (HasTime t s) => t -> [b] -> Wire s e m a (Event b)
+periodicList :: (HasTime t s) => t -> [b] -> Wire s e m a (UniqueEvent b)
 periodicList int _ | int <= 0 = error "periodic: Non-positive interval"
 periodicList _ [] = never
-periodicList int (x:xs) = mkSFN $ \_ -> (Event x, loop int xs)
+periodicList int (x:xs) = mkSFN $ \_ -> (fromEvent $ Event x, loop int xs)
     where
     loop _ [] = never
     loop 0 xs = loop int xs
@@ -311,15 +324,15 @@ periodicList int (x:xs) = mkSFN $ \_ -> (Event x, loop int xs)
         mkSF $ \ds _ ->
             let t = t' - dtime ds
             in if t <= 0
-                 then (Event x, loop (mod' t int) xs)
-                 else (NoEvent, loop t xs0)
+                 then (fromEvent $ Event x, loop (mod' t int) xs)
+                 else (fromEvent NoEvent, loop t xs0)
 
 
 -- | Product of all events.
 --
 -- * Depends: now.
 
-productE :: (Num a) => Wire s e m (Event a) (Event a)
+productE :: (EventLike ev, Num a) => Wire s e m (ev a) (ev a)
 productE = accumE (*) 1
 
 
@@ -327,7 +340,7 @@ productE = accumE (*) 1
 --
 -- * Depends: now.
 
-sumE :: (Num a) => Wire s e m (Event a) (Event a)
+sumE :: (EventLike ev, Num a) => Wire s e m (ev a) (ev a)
 sumE = accumE (+) 0
 
 
@@ -335,7 +348,7 @@ sumE = accumE (+) 0
 --
 -- * Depends: now.
 
-takeE :: Int -> Wire s e m (Event a) (Event a)
+takeE :: (EventLike ev) => Int -> Wire s e m (ev a) (ev a)
 takeE n | n <= 0 = never
 takeE n =
     fix $ \again ->
@@ -348,10 +361,42 @@ takeE n =
 --
 -- * Depends: now.
 
-takeWhileE :: (a -> Bool) -> Wire s e m (Event a) (Event a)
+takeWhileE :: (EventLike ev) => (a -> Bool) -> Wire s e m (ev a) (ev a)
 takeWhileE p =
     fix $ \again ->
     mkSFN $ \mev ->
-        case mev of
-          Event x | not (p x) -> (NoEvent, never)
+        case toEvent mev of
+          Event x | not (p x) -> (fromEvent NoEvent, never)
           _ -> (mev, again)
+
+
+-- | Each time the given unique event occurs, perform the given action
+-- with the value the event carries.  The resulting event carries the
+-- result of the action.
+--
+-- * Depends: now.
+
+onUEventM :: (Monad m) => (a -> m b) -> Wire s e m (UniqueEvent a) (UniqueEvent b)
+onUEventM = onEventM
+
+
+-- | Emit an 'UniqueEvent's value when it arrives.
+--
+-- * Depends: now.
+--
+-- * Inhibits: while no event happens.
+
+onU :: (Monoid e) => Wire s e m (UniqueEvent a) a
+onU = onE
+
+
+-- | Did the given unique event occur?
+
+occurredU :: UniqueEvent a -> Bool
+occurredU = occurred
+
+
+-- | Fold the given unique event.
+
+eventU :: b -> (a -> b) -> UniqueEvent a -> b
+eventU = event
